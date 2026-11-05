@@ -17,6 +17,9 @@ class BrokerageProfileController extends Notifier<BrokerageProfileDraft> {
   @override
   BrokerageProfileDraft build() => const BrokerageProfileDraft();
 
+  /// Replaces the draft with one saved on the server (resume).
+  void restore(BrokerageProfileDraft draft) => state = draft;
+
   /// Updates the brokerage name.
   void updateName(String name) => state = state.copyWith(brokerageName: name);
 

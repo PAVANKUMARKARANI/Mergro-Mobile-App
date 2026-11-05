@@ -21,6 +21,9 @@ class CalendarController extends Notifier<CalendarDraft> {
   @override
   CalendarDraft build() => const CalendarDraft();
 
+  /// Replaces the draft with one saved on the server (resume).
+  void restore(CalendarDraft draft) => state = draft;
+
   /// Connects [provider]: Not connected → Connecting… → Connected.
   Future<void> connect(CalendarProvider provider) async {
     if (state.statusOf(provider) != IntegrationStatus.notConnected) return;

@@ -68,9 +68,10 @@ class InviteTeamDraft {
     this.invites = const [],
     this.isSending = false,
     this.sentCount = 0,
+    this.errorMessage,
   });
 
-  /// Pending invites in the order they were added.
+  /// Invites not sent yet, in the order they were added.
   final List<TeamInvite> invites;
 
   /// True while invites are being sent.
@@ -79,19 +80,25 @@ class InviteTeamDraft {
   /// How many invites have been sent so far.
   final int sentCount;
 
-  /// Continue needs at least one invite; otherwise use "Skip for now".
-  bool get isValid => invites.isNotEmpty;
+  /// Why the last send failed (one line per failed email), or null.
+  final String? errorMessage;
 
-  /// Copies with changes.
+  /// Continue needs an invite to send or one already sent; otherwise use
+  /// "Skip for now".
+  bool get isValid => invites.isNotEmpty || sentCount > 0;
+
+  /// Copies with changes; [errorMessage] takes a getter so it can be cleared.
   InviteTeamDraft copyWith({
     List<TeamInvite>? invites,
     bool? isSending,
     int? sentCount,
+    ValueGetter<String?>? errorMessage,
   }) {
     return InviteTeamDraft(
       invites: invites ?? this.invites,
       isSending: isSending ?? this.isSending,
       sentCount: sentCount ?? this.sentCount,
+      errorMessage: errorMessage != null ? errorMessage() : this.errorMessage,
     );
   }
 }

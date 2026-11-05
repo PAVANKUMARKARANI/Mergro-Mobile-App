@@ -156,7 +156,8 @@ Suggested PR split for Mergro: theme and shared widgets → splash → login →
 ### B1. Tech
 - Flutter (Dart ≥ 3.7), Material 3.
 - Allowed packages: `flutter_riverpod` (3.x), `google_fonts`, `lucide_icons_flutter`,
-  `flutter_native_splash`, plus `flutter_tts` (approved 2026-11-04 for voice previews).
+  `flutter_native_splash`, plus `flutter_tts` (approved 2026-11-04 for voice previews), and
+  `dio` + `flutter_secure_storage` (approved 2026-11-05 for the backend integration).
   **Nothing else** without approval.
 - Animations use `AnimationController`, `Tween` and `CustomPainter` only (no Lottie).
 - Navigation is imperative with `Navigator`, and all of it lives in `lib/app/app_routes.dart`.
@@ -181,13 +182,21 @@ Suggested PR split for Mergro: theme and shared widgets → splash → login →
 - Screens take navigation callbacks (`LoginScreen(onSignedIn:, onForgotPassword:)`), and
   `AppRoutes` wires them up.
 
-### B3. Backend boundary (UI phase)
-- During the UI phase there are **no** API calls, repositories, services, HTTP clients, local
-  storage, real OAuth/SSO, audio or permission requests.
-- Controllers simulate backend work with `Future.delayed` and mark each spot with
-  `// TODO(backend): <the API call that goes here>`.
-- During backend integration, add `services/` and `repositories/` to each feature following A4 and A5.
-  Controllers then call repositories, and the A10 error cases map into the existing sealed outcomes.
+### B3. Backend boundary
+- **Integrated (2026-11-05):** email/password login, session restore, logout, forgot password,
+  onboarding steps (save, skip, resume, complete) and team invites call the Mergro API
+  (`~/Projects/Mergro/server`). Everything else is still simulated.
+- Flow: `Controller → Repository → ApiService → ApiClient` (`core/network/`). Only repositories
+  are used by controllers; tests override `authRepositoryProvider` /
+  `onboardingRepositoryProvider` with fakes and never hit the network or secure storage.
+- Every failure is an `ApiException` with an `ApiErrorKind` (A10) and a user-safe `message`;
+  controllers map it into their sealed outcomes. An expired session is `unauthorized` and the
+  screen sends the user back to Login.
+- Tokens live only in `TokenStorage` (secure storage; memory only when "Remember me" is off).
+  Never log them.
+- Features without a backend yet (SSO, Zoho, calendars, phone OTP, voice samples) keep
+  `Future.delayed` simulations or an "unavailable" message, each marked
+  `// TODO(backend): <the API call that goes here>`. Never present them as real.
 - All dummy text, lists and sample values live in `*_demo_data.dart` files.
 
 ### B4. File and code rules

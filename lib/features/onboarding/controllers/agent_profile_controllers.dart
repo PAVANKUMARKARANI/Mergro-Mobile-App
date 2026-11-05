@@ -27,6 +27,9 @@ class AgentProfileController extends Notifier<AgentProfileDraft> {
     return AgentProfileDraft(fullName: name);
   }
 
+  /// Replaces the draft with one saved on the server (resume).
+  void restore(AgentProfileDraft draft) => state = draft;
+
   /// Updates the full name.
   void updateName(String name) => state = state.copyWith(fullName: name);
 
@@ -47,6 +50,9 @@ class HotLeadAlertsController extends Notifier<HotLeadAlertsDraft> {
   /// Starts with every alert on.
   @override
   HotLeadAlertsDraft build() => const HotLeadAlertsDraft();
+
+  /// Replaces the draft with one saved on the server (resume).
+  void restore(HotLeadAlertsDraft draft) => state = draft;
 
   /// Turns push notifications on or off.
   void setPush(bool enabled) => state = state.copyWith(pushEnabled: enabled);

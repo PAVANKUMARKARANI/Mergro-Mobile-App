@@ -27,6 +27,21 @@ class InviteTeamStep extends ConsumerWidget {
           onAdd: controller.addInvite,
           onRemove: controller.removeInvite,
         ),
+        if (draft.errorMessage case final error?) ...[
+          const SizedBox(height: AppSpacing.md),
+          InfoBanner(
+            type: InfoBannerType.error,
+            title: "Some invites weren't sent",
+            message: error,
+          ),
+        ],
+        if (draft.sentCount > 0) ...[
+          const SizedBox(height: AppSpacing.md),
+          InfoBanner(
+            type: InfoBannerType.success,
+            message: '${draft.sentCount} invite(s) sent.',
+          ),
+        ],
         const SizedBox(height: AppSpacing.xl),
         SectionHeader(
           title: 'Invites (${draft.invites.length})',

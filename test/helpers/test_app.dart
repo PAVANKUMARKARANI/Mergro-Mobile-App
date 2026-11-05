@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergro_ai_voice_assistant/core/theme/app_theme.dart';
 import 'package:mergro_ai_voice_assistant/core/theme/app_typography.dart';
 
+import 'fakes.dart';
+
 /// Smallest supported phone size.
 const Size smallPhone = Size(360, 780);
 
@@ -11,7 +13,8 @@ const Size smallPhone = Size(360, 780);
 const double maxTextScale = 1.3;
 
 /// Pumps [child] in a themed app on a [smallPhone] at [maxTextScale].
-/// Pass [container] to share provider state with the test.
+/// Pass [container] to share provider state with the test; otherwise the
+/// app gets [fakeOverrides] so nothing reaches the network.
 Future<void> pumpTestApp(
   WidgetTester tester,
   Widget child, {
@@ -38,7 +41,7 @@ Future<void> pumpTestApp(
   );
   await tester.pumpWidget(
     container == null
-        ? ProviderScope(child: app)
+        ? ProviderScope(overrides: fakeOverrides(), child: app)
         : UncontrolledProviderScope(container: container, child: app),
   );
 }

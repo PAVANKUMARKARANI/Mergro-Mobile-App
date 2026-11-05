@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,7 +8,6 @@ import '../models/login_models.dart';
 import '../widgets/login_footer.dart';
 import '../widgets/login_form.dart';
 import '../widgets/login_header.dart';
-import '../widgets/preview_role_selector.dart';
 import '../widgets/sso_buttons.dart';
 
 /// Login: navy header, overlapping form card, provider buttons and footer.
@@ -160,13 +158,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               isBusy: state.isBusy,
               onSelected: _signInWithProvider,
             ),
-            if (kDebugMode) ...[
-              const SizedBox(height: AppSpacing.lg),
-              PreviewRoleSelector(
-                selectedRole: state.previewRole,
-                onSelected: controller.setPreviewRole,
-              ),
-            ],
           ],
         ),
       ),

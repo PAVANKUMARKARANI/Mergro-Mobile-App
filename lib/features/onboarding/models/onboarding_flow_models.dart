@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 
 import '../../auth/models/app_user.dart';
 
+export 'onboarding_outcomes.dart';
+
 /// Every onboarding step across all roles.
 enum OnboardingStepId {
   /// Admin 1: brokerage details.
@@ -73,30 +75,6 @@ enum OnboardingStepId {
   };
 }
 
-/// Result of finishing onboarding.
-sealed class OnboardingFinishOutcome {
-  /// Base constructor.
-  const OnboardingFinishOutcome();
-}
-
-/// Onboarding was saved; show the success screen.
-class OnboardingFinished extends OnboardingFinishOutcome {
-  /// Creates a success outcome for [role].
-  const OnboardingFinished(this.role);
-
-  /// Role that finished, to pick the success copy.
-  final UserRole role;
-}
-
-/// Finishing failed or was already running; [message] is user-facing.
-class OnboardingFinishFailed extends OnboardingFinishOutcome {
-  /// Creates a failure outcome.
-  const OnboardingFinishFailed(this.message);
-
-  /// Why it failed.
-  final String message;
-}
-
 /// Immutable position within the onboarding flow.
 @immutable
 class OnboardingFlowState {
@@ -108,6 +86,9 @@ class OnboardingFlowState {
     this.completedSteps = const {},
     this.skippedSteps = const {},
     this.isFinishing = false,
+    this.isSaving = false,
+    this.isLoading = false,
+    this.loadError,
   });
 
   /// Role of the signed-in user.
@@ -127,6 +108,18 @@ class OnboardingFlowState {
 
   /// True while finish() runs.
   final bool isFinishing;
+
+  /// True while a step is being saved or skipped on the server.
+  final bool isSaving;
+
+  /// True while saved progress is loading from the server.
+  final bool isLoading;
+
+  /// Why loading progress failed (the screen offers Retry), or null.
+  final String? loadError;
+
+  /// True while any server call runs; navigation is blocked meanwhile.
+  bool get isBusy => isFinishing || isSaving || isLoading;
 
   /// Admins end with a Review page before launching.
   bool get hasReview => role == UserRole.brokerageAdmin;
@@ -149,6 +142,9 @@ class OnboardingFlowState {
     Set<OnboardingStepId>? completedSteps,
     Set<OnboardingStepId>? skippedSteps,
     bool? isFinishing,
+    bool? isSaving,
+    bool? isLoading,
+    ValueGetter<String?>? loadError,
   }) {
     return OnboardingFlowState(
       role: role,
@@ -157,6 +153,9 @@ class OnboardingFlowState {
       completedSteps: completedSteps ?? this.completedSteps,
       skippedSteps: skippedSteps ?? this.skippedSteps,
       isFinishing: isFinishing ?? this.isFinishing,
+      isSaving: isSaving ?? this.isSaving,
+      isLoading: isLoading ?? this.isLoading,
+      loadError: loadError != null ? loadError() : this.loadError,
     );
   }
 }

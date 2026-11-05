@@ -17,6 +17,9 @@ class PhoneLineController extends Notifier<PhoneLineDraft> {
   @override
   PhoneLineDraft build() => const PhoneLineDraft();
 
+  /// Replaces the draft with one saved on the server (resume).
+  void restore(PhoneLineDraft draft) => state = draft;
+
   /// Selects the telephony provider.
   void selectProvider(TelephonyProvider provider) =>
       state = state.copyWith(provider: provider);

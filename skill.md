@@ -4,9 +4,10 @@ The living record of what has been built. Update it with every implementation, f
 [standards.md](standards.md) Part C. Backend integration starts from the **Providers** and
 **TODO(backend)** tables below.
 
-## Scope (UI phase)
-Mergro is an AI voice agent for real-estate brokerages. This phase builds the UI and Riverpod state
-for the first three screens, with no backend:
+## Scope
+Mergro is an AI voice agent for real-estate brokerages. The UI phase built the UI and Riverpod
+state for the first three screens. Since 2026-11-05, auth and onboarding talk to the real backend
+(`~/Projects/Mergro/server`, see the log entry of that date). The screens:
 1. Animated Splash
 2. Login (email/password, Google/Microsoft/company SSO, forgot password, request access)
 3. Role-based Onboarding and Setup:
@@ -27,9 +28,13 @@ The Home Dashboard is a placeholder in this phase.
 - [x] Screen 3: Onboarding, Admin flow (steps 1–6, Review, success)
 - [x] Screen 3: Onboarding, Sales agent flow
 - [x] Screen 3: Onboarding, Team lead flow
-- [x] Home placeholder with "Restart preview" (clears the user and resets onboarding)
+- [x] Home placeholder with "Sign out" (ends the session and resets onboarding)
 - [x] Controller unit tests
-- [ ] Final QA: analyze, file length, light/dark, 360 px, text scale 1.3
+- [x] Backend: networking core (`ApiClient`, `ApiException`, secure `TokenStorage`)
+- [x] Backend: login, session restore at splash, logout, forgot password (`/api/auth/*`)
+- [x] Backend: onboarding save / skip / resume / complete, team invites (`/api/onboarding/*`, `/api/team/*`)
+- [ ] Backend: SSO, Zoho, calendars, phone OTP, voice samples (no backend endpoints yet)
+- [ ] Final QA: light/dark, 360 px, text scale 1.3 on a device against the live API
 
 ## Implementation log
 <!-- Newest first. Template:
@@ -39,6 +44,79 @@ The Home Dashboard is a placeholder in this phase.
 **Decisions / deviations:** …
 **Verification:** flutter analyze ✅ · tests ✅ · checked light/dark/360px/1.3x
 -->
+
+### 2026-11-05 — Backend integration: auth and onboarding
+**Built (app):**
+- Networking core: `ApiClient` (dio; adds `Bearer` token, base URL from `--dart-define=API_BASE_URL`,
+  default `http://localhost:2282/api`, or `10.0.2.2` on the Android emulator), `ApiResponseMapper`
+  (HTTP status, the template's `HTTP 200 + {errorCode: "9001", errorMessage}`, `sessionExpired`,
+  express-validator 400s, transport errors → `ApiException` with an `ApiErrorKind` and a user-safe
+  message), `SecureTokenStorage` (keychain/keystore; memory only when "Remember me" is off).
+- Auth: `AuthApiService` + `AuthRepository`; `AppUser.fromJson` (+ `isOnboardingComplete`).
+  Login calls `POST /auth/login` then `GET /auth/me`; wrong email/password show one generic
+  message; invited (inactive) accounts get their own message. Splash restores the session
+  (no token / expired → Login; onboarding done → Home; else Onboarding; offline → Login, token
+  kept). Forgot password calls the API but always shows success unless offline. Home's
+  "Restart preview" became "Sign out" (`POST /auth/logout`, token cleared).
+- Onboarding: `OnboardingApiService` + `OnboardingRepository`; draft ⇄ JSON in
+  `models/draft_json.dart` (enum names, "HH:mm" times). The flow loads saved progress first
+  (spinner, error + Retry), restores every saved draft and resumes at the first open step.
+  Continue saves the step (`PUT /onboarding/steps/{step}`), Skip records it, Finish/Launch calls
+  `POST /onboarding/complete`; failures show a snack bar and stay on the step; an expired session
+  returns to Login. Invites call `POST /team/invites`: sent ones leave the list, failed ones stay
+  with the server's reason in an error banner.
+- Removed the debug "Preview as" role picker and `auth_demo_data.dart` (roles now come from the
+  server); test users moved to `test/helpers/fakes.dart`.
+- Platform: Android `INTERNET` (main) and cleartext HTTP (debug manifest only); iOS
+  `NSAllowsLocalNetworking`; macOS `network.client` entitlement.
+
+**Built (backend, `~/Projects/Mergro/server`, existing Express template):**
+- Secrets moved to `server/.env` (git-ignored, `.env.example` documents them): Mongo URL (now the
+  `mergro` database), a new random JWT secret, AES key, Twilio/Nexmo credentials, SMS numbers.
+  Mongo URL no longer printed in logs. History rewritten before the first push so no commit
+  contains them (pushed to `origin/main`, commit `1977eea`).
+- New: `GET /api/auth/me`, `GET /api/onboarding`, `PUT /api/onboarding/steps/:stepId`
+  (`{data}` or `{skipped:true}`, Joi-validated per step, role-checked), `POST
+  /api/onboarding/complete`, `POST /api/team/invites` (admins only; per-email results).
+  Models `Brokerage`, `OnboardingProgress`; employee gets status, brokerageId, onboardingCompleted,
+  languages, alertPreferences, availability. `npm run seed` creates settings, 5 roles, 2 email
+  templates and 3 demo users (`admin@`, `agent@`, `lead@yopmail.com`, password `Emp1234$`).
+- Security fixes in the template: `changeRecoverPassword` accepted base64(email) alone (anyone
+  could reset any password) → now needs a single-use, expiring token from the emailed link
+  (also used by invites, which activate the account); `forgotPassword` crashed on an undefined
+  `settings`; login logged plaintext passwords; `apistats` stored request bodies with passwords
+  and tokens → redacted; `sessionExpired: true` added to session errors.
+
+**Files (app):** added `core/network/{api_client,api_config,api_exception,api_response_mapper}.dart`,
+`core/storage/token_storage.dart`, `features/auth/{services/auth_api_service,repositories/auth_repository}.dart`,
+`features/onboarding/{services/onboarding_api_service,repositories/onboarding_repository}.dart`,
+`features/onboarding/models/{draft_json,onboarding_progress,onboarding_outcomes}.dart`,
+`features/onboarding/controllers/onboarding_step_data.dart`, `features/onboarding/widgets/onboarding_load_view.dart`,
+tests listed under Files created. Changed: login/current-user/forgot-password/splash/flow/invite
+controllers, `restore()` on every step controller, `app_user.dart`, `login_models.dart`,
+`login_screen.dart`, `onboarding_screen.dart`, `invite_team_step.dart`, `agent_setup_drafts.dart`,
+`home_placeholder_screen.dart`, `app_routes.dart`, `time_of_day_format.dart`, `pubspec.yaml`,
+platform manifests. Deleted `auth/auth_demo_data.dart`, `auth/widgets/preview_role_selector.dart`.
+
+**Decisions / deviations:**
+- Packages `dio` 5.11 and `flutter_secure_storage` 11.2 approved by the user (standards B1 updated).
+- SSO buttons now say "coming soon" instead of signing in a fake user: a fake session would fail
+  on the first real API call.
+- The backend keeps the template's error convention (HTTP 200 + `errorCode`), handled in the app.
+- Zoho/calendar connection state isn't stored server-side (still simulated); on resume a saved
+  CRM step is restored as connected and a saved existing phone number as verified.
+- Email delivery is off (`settings.enableMails: false`) until SendGrid keys and a web page for
+  `/changeRecoverPassword/:enEmail?token=` (`WEB_APP_URL`) exist; links are recorded in
+  `emailstatuses` meanwhile.
+
+**Verification:** `dart format .` ✅ · `flutter analyze` 0 issues ✅ · `flutter test` 81/81 ✅
+(30 new) · `flutter build apk --debug` ✅. Backend: 39/39 scripted end-to-end API checks against
+the `mergro` DB ✅, valid/reused invite token ✅, apistats redaction ✅, seed re-run is a no-op ✅.
+The app's real repositories and draft JSON ran against the live API (admin + agent flows,
+temporary test, deleted afterwards) ✅; demo data reset afterwards. **Not verified:** running the
+app on a device/simulator against the API, iOS/macOS builds (secure storage on macOS may need a
+keychain entitlement), real email delivery, light/dark/1.3× visual check of the new
+loading/error/invite-banner states beyond the widget tests.
 
 ### 2026-11-05 — .gitignore for app and backend repos
 **Built:** Root `.gitignore` for this Flutter app (build/, .dart_tool/, IDE files, `.env*`,
@@ -282,40 +360,40 @@ Changed: `lib/main.dart`, `pubspec.yaml`. Removed the scaffold `test/widget_test
 | Provider | Type | Scope | State fields |
 |----------|------|-------|--------------|
 | `splashControllerProvider` | `AsyncNotifierProvider.autoDispose<SplashController, SplashDestination>` | Splash screen | `AsyncValue<SplashDestination>` (login / onboarding / home) |
-| `currentUserProvider` | `NotifierProvider<CurrentUserController, AppUser?>` | App-wide | `AppUser?` (id, name, email, role, brokerageName); `setUser()`, `clear()` |
-| `loginControllerProvider` | `NotifierProvider.autoDispose<LoginController, LoginState>` | Login screen + SSO sheet | email, password, rememberMe, isSubmitting, activeSsoProvider, emailError, passwordError, bannerMessage, previewRole; `signIn()` / `signInWithProvider()` → `LoginOutcome` |
-| `onboardingFlowControllerProvider` | `NotifierProvider<OnboardingFlowController, OnboardingFlowState>` | Onboarding (kept alive, reset explicitly) | role, steps, currentIndex (== steps.length on Review), completedSteps, skippedSteps, isFinishing; `next()`, `back()`, `skip()`, `finish()` → `OnboardingFinishOutcome` |
+| `currentUserProvider` | `NotifierProvider<CurrentUserController, AppUser?>` | App-wide | `AppUser?` (id, name, email, role, brokerageName, isOnboardingComplete); `setUser()`, `refresh()` (`GET /auth/me`), `signOut()` (`POST /auth/logout` + clear token) |
+| `loginControllerProvider` | `NotifierProvider.autoDispose<LoginController, LoginState>` | Login screen + SSO sheet | email, password, rememberMe, isSubmitting, activeSsoProvider, emailError, passwordError, bannerMessage; `signIn()` (real API) / `signInWithProvider()` ("coming soon") → `LoginOutcome` |
+| `onboardingFlowControllerProvider` | `NotifierProvider<OnboardingFlowController, OnboardingFlowState>` | Onboarding (kept alive, reset explicitly) | role, steps, currentIndex (== steps.length on Review), completedSteps, skippedSteps, isFinishing, isSaving, isLoading (true until loaded), loadError; `loadProgress()`, `next()`, `skip()` → `StepActionOutcome`; `back()`; `finish()` → `OnboardingFinishOutcome` |
 | `brokerageProfileControllerProvider` | `NotifierProvider<…, BrokerageProfileDraft>` | Admin step 1 | brokerageName, hasLogo, country, timeZone, officeAddress, opensAt, closesAt |
 | `crmControllerProvider` | `NotifierProvider<CrmController, CrmDraft>` | Admin step 2 | zohoStatus, enabledLeadSources; `connectZoho()` |
 | `viewingCalendarControllerProvider` / `agentCalendarControllerProvider` | `NotifierProvider<CalendarController, CalendarDraft>` | Admin step 3 / agent step 3 | statuses per provider, viewingMinutes, bufferMinutes, days, startTime, endTime; `connect()` |
 | `phoneLineControllerProvider` | `NotifierProvider<…, PhoneLineDraft>` | Admin step 4 | provider, numberSource, selectedNumber, existingNumber, existingNumberError, isSendingCode, isVerifying, isVerified, consentConfirmed; `sendVerificationCode()`, `verifyCode()` |
 | `aiAgentControllerProvider` | `NotifierProvider<…, AiAgentDraft>` | Admin step 5 | agentName, voice, languages (disclosesAi always true) |
-| `inviteTeamControllerProvider` | `NotifierProvider<…, InviteTeamDraft>` | Admin step 6 | invites [{email, role}], isSending, sentCount; `addInvite()`, `sendInvites()` |
+| `inviteTeamControllerProvider` | `NotifierProvider<…, InviteTeamDraft>` | Admin step 6 | invites [{email, role}] (unsent), isSending, sentCount, errorMessage; `addInvite()`, `sendInvites()` → `StepActionOutcome` |
 | `agentProfileControllerProvider` | `NotifierProvider<…, AgentProfileDraft>` | Agent / team-lead step 1 | fullName, mobileNumber, hasPhoto, languages |
 | `hotLeadAlertsControllerProvider` | `NotifierProvider<…, HotLeadAlertsDraft>` | Agent / team-lead step 2 | pushEnabled, smsFallbackEnabled, soundEnabled, quietStart, quietEnd |
 | `voicePreviewControllerProvider` | `NotifierProvider.autoDispose<VoicePreviewController, AgentVoice?>` | AI agent step | Voice currently speaking (null = silent); `togglePreview()` → `bool`, `stop()` |
 | `voicePreviewServiceProvider` | `Provider<VoicePreviewService>` | App-wide | Device text-to-speech implementation; overridden with a fake in tests |
+| `tokenStorageProvider` | `Provider<TokenStorage>` | App-wide | `SecureTokenStorage`; in-memory fake in tests |
+| `apiClientProvider` | `Provider<ApiClient>` | App-wide | dio client with bearer token and error mapping |
+| `authApiServiceProvider` / `authRepositoryProvider` | `Provider<AuthApiService>` / `Provider<AuthRepository>` | App-wide | `/api/auth/*`; repository overridden with `FakeAuthRepository` in tests |
+| `onboardingApiServiceProvider` / `onboardingRepositoryProvider` | `Provider<OnboardingApiService>` / `Provider<OnboardingRepository>` | App-wide | `/api/onboarding/*`, `/api/team/invites`; repository overridden with `FakeOnboardingRepository` in tests |
 | `stepValidProvider(step)` | `Provider.family<bool, OnboardingStepId>` | Onboarding | Whether Continue is enabled for that step |
-| `forgotPasswordControllerProvider` | `NotifierProvider.autoDispose<ForgotPasswordController, ForgotPasswordState>` | Forgot-password sheet | email, emailError, isSending, isSent; `sendResetLink()` → `bool` |
+| `forgotPasswordControllerProvider` | `NotifierProvider.autoDispose<ForgotPasswordController, ForgotPasswordState>` | Forgot-password sheet | email, emailError, isSending, isSent; `sendResetLink()` → `bool` (real API) |
 
 ## TODO(backend)
+Integrated on 2026-11-05 (no longer placeholders): session restore, login, logout, `GET /auth/me`,
+forgot password, onboarding save/skip/resume/complete, team invites. Still simulated:
+
 | File | Placeholder | Real API call needed |
 |------|-------------|----------------------|
-| `splash/controllers/splash_controller.dart` | `build()` returns login | Restore the session: read the stored refresh token → `GET /me` → login / onboarding / home |
-| `auth/controllers/current_user_controller.dart` | `setUser()` | Persist tokens and load the real user (`GET /me`) |
-| `auth/controllers/current_user_controller.dart` | `clear()` | `POST /auth/logout`, then clear stored tokens |
-| `auth/controllers/login_controller.dart` | `signIn()` | `POST /auth/login {email, password, rememberMe}` → tokens + user; map 401 to "Email or password is incorrect." |
-| `auth/controllers/login_controller.dart` | `signInWithProvider()` | Google/Microsoft: native OAuth, then `POST /auth/oauth/{provider} {idToken}`. Company SSO: `GET /auth/sso/discover?email=`, then the SAML/OIDC web flow |
-| `app/app_routes.dart` | `_afterSignIn()` | Skip onboarding when `GET /me` says it is already complete |
-| `onboarding/controllers/onboarding_flow_controller.dart` | `next()` | Save step: `PUT /onboarding/steps/{step}` with that step's draft |
-| `onboarding/controllers/onboarding_flow_controller.dart` | `finish()` | `POST /onboarding/complete` (for admins this also activates the AI agent and lead webhooks) |
-| `onboarding/controllers/crm_controller.dart` | `connectZoho()` / `disconnectZoho()` | `GET /integrations/zoho/authorize-url` → browser → `POST /integrations/zoho/callback {code}`; `DELETE /integrations/zoho` |
+| `auth/controllers/login_controller.dart` | `signInWithProvider()` returns "coming soon" | Google/Microsoft: native OAuth, then `POST /auth/oauth/{provider} {idToken}`. Company SSO: `GET /auth/sso/discover?email=`, then the SAML/OIDC web flow. The template has `POST /api/auth/socialLogin` (Google id-token) to build on |
+| `onboarding/controllers/crm_controller.dart` | `connectZoho()` / `disconnectZoho()` | `GET /integrations/zoho/authorize-url` → browser → `POST /integrations/zoho/callback {code}`; `DELETE /integrations/zoho`. Then store the status server-side (today a saved CRM step is restored as connected) |
 | `onboarding/controllers/calendar_controller.dart` | `connect()` / `disconnect()` | Google / Outlook calendar OAuth: `GET …/authorize-url`, then `POST …/callback {code}`; `DELETE /integrations/{provider}-calendar` |
 | `onboarding/controllers/phone_line_controller.dart` | `sendVerificationCode()` | `POST /phone-numbers/verify {number, provider}` (sends an OTP) |
 | `onboarding/controllers/phone_line_controller.dart` | `verifyCode()` | `POST /phone-numbers/verify/confirm {number, code}` |
-| `onboarding/controllers/invite_team_controller.dart` | `sendInvites()` | `POST /team/invites [{email, role}]`; surface per-email failures |
 | `onboarding/services/voice_preview_service.dart` | `voicePreviewServiceProvider` (device TTS) | `GET /voices/{id}/sample` (real AI voice audio). Implement `VoicePreviewService` with an audio player and swap the provider |
-| `auth/controllers/forgot_password_controller.dart` | `sendResetLink()` | `POST /auth/forgot-password {email}`; always show success, so the response never reveals whether an account exists |
+| `auth/widgets/request_access_sheet.dart` | Info sheet only | An access-request endpoint (none in the backend yet) |
+| Brokerage logo / agent photo (`hasLogo`, `hasPhoto`) | Not uploaded | Upload endpoint (the template has `/api/uploads`) |
 
 ## Files created
 - Docs: `standards.md`, `skill.md`, `CLAUDE.md`
@@ -327,14 +405,22 @@ Changed: `lib/main.dart`, `pubspec.yaml`. Removed the scaffold `test/widget_test
 - App: `lib/main.dart`, `lib/app/{mergro_app,app_routes}.dart`
 - Splash: `lib/features/splash/**`, `lib/shared/widgets/call_rings_painter.dart`,
   `flutter_native_splash.yaml`, `assets/splash/*.png`, `tool/render_splash_logo_test.dart`
-- Auth: `lib/features/auth/**` (demo data, models, 3 controllers, 9 widgets, login screen)
-- Onboarding: `lib/features/onboarding/**` (demo data, 6 model files, 9 controller files, 15 widget
-  files, 2 screens) and the shared `app_dropdown_field`, `toggle_chip_group`,
+- Auth: `lib/features/auth/**` (models, 3 controllers, 8 widgets, login screen, `services/auth_api_service.dart`,
+  `repositories/auth_repository.dart`)
+- Network: `lib/core/network/{api_client,api_config,api_exception,api_response_mapper}.dart`,
+  `lib/core/storage/token_storage.dart`
+- Onboarding: `lib/features/onboarding/**` (demo data, 9 model files incl. `draft_json`,
+  `onboarding_progress`, `onboarding_outcomes`; 10 controller files incl. `onboarding_step_data`;
+  16 widget files incl. `onboarding_load_view`; `services/onboarding_api_service.dart`,
+  `repositories/onboarding_repository.dart`; 2 screens) and the shared `app_dropdown_field`, `toggle_chip_group`,
   `setting_switch_tile`, `time_range_field`, `core/utils/{time_of_day_format,set_toggle}.dart`
 - Home: `lib/features/home/screens/home_placeholder_screen.dart`
 - Tests: `test/core/validation/form_validators_test.dart`, `test/helpers/test_app.dart`,
   `test/features/splash/splash_screen_test.dart`, `test/features/auth/{login_screen,login_controller}_test.dart`,
-  `test/features/onboarding/{onboarding_flow_controller,step_controllers,onboarding_screen}_test.dart`
+  `test/features/onboarding/{onboarding_flow_controller,step_controllers,onboarding_screen,
+  onboarding_screen_server,draft_json}_test.dart`, `test/features/auth/{auth_repository,
+  splash_and_user}_test.dart`, `test/core/network/api_client_test.dart`,
+  `test/helpers/{fakes,onboarding_screen_utils}.dart`
 
 ## Agent handoff
 
@@ -344,6 +430,18 @@ next agent reads `AGENTS.md`, `skill.md`, `standards.md` and `CLAUDE.md`, inspec
 and reconciles any differences. Do not assume the other agent's chat history is available. Only
 one agent may edit this working tree at a time.
 
-**Next recommended task:** complete the unchecked Final QA item above: run the prescribed format
-check, `flutter analyze` and `flutter test`; verify light and dark modes, 360 px layout and 1.3×
-text scale; confirm every Dart file is at most 250 lines. Record only checks actually completed.
+**Running against the backend:** in `~/Projects/Mergro/server`: `npm install`, fill `server/.env`
+(see `.env.example`), `npm run seed` once, then `node server-start.js` (port 2282). Run the app with
+`flutter run` (emulator uses `10.0.2.2` automatically) or
+`--dart-define=API_BASE_URL=http://<host>:2282/api` on a physical device. Demo users:
+`admin@yopmail.com`, `agent@yopmail.com`, `lead@yopmail.com`, password `Emp1234$` (yopmail
+inboxes are public, so reset/invite emails to them can be read by anyone: demo use only).
+
+**State at handoff (2026-11-05):** the app and backend changes for this integration are **not
+committed** in either repo (the backend's secrets cleanup is committed and pushed).
+
+**Next recommended task:** run the app on an Android emulator and an iOS simulator against the
+local API and walk through admin, agent and team-lead onboarding (including Retry with the server
+stopped and sign-out); check light/dark, 360 px and 1.3× on the new loading/error/invite states;
+then build a page (web or in-app) for `/changeRecoverPassword/:enEmail?token=` so reset and invite
+emails can be completed, and enable SendGrid in the `settings` document.

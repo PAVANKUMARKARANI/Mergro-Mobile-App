@@ -57,7 +57,6 @@ class LoginState {
     this.emailError,
     this.passwordError,
     this.bannerMessage,
-    this.previewRole = UserRole.brokerageAdmin,
   });
 
   /// Email field value.
@@ -84,9 +83,6 @@ class LoginState {
   /// Error banner above the Sign in button.
   final String? bannerMessage;
 
-  /// Debug-only: role of the dummy user, which picks the onboarding flow.
-  final UserRole previewRole;
-
   /// True while any sign-in is running; all sign-in buttons are blocked.
   bool get isBusy => isSubmitting || activeSsoProvider != null;
 
@@ -101,7 +97,6 @@ class LoginState {
     ValueGetter<String?>? emailError,
     ValueGetter<String?>? passwordError,
     ValueGetter<String?>? bannerMessage,
-    UserRole? previewRole,
   }) {
     return LoginState(
       email: email ?? this.email,
@@ -118,7 +113,6 @@ class LoginState {
       bannerMessage: bannerMessage != null
           ? bannerMessage()
           : this.bannerMessage,
-      previewRole: previewRole ?? this.previewRole,
     );
   }
 }

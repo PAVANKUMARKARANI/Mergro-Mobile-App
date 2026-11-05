@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergro_ai_voice_assistant/core/validation/form_validators.dart';
+import 'package:mergro_ai_voice_assistant/features/auth/models/app_user.dart';
 import 'package:mergro_ai_voice_assistant/features/onboarding/controllers/crm_controller.dart';
 import 'package:mergro_ai_voice_assistant/features/onboarding/controllers/invite_team_controller.dart';
 import 'package:mergro_ai_voice_assistant/features/onboarding/controllers/onboarding_providers.dart';
@@ -8,6 +9,8 @@ import 'package:mergro_ai_voice_assistant/features/onboarding/controllers/phone_
 import 'package:mergro_ai_voice_assistant/features/onboarding/models/onboarding_flow_models.dart';
 import 'package:mergro_ai_voice_assistant/features/onboarding/models/onboarding_options.dart';
 import 'package:mergro_ai_voice_assistant/shared/widgets/integration_card.dart';
+
+import '../../helpers/fakes.dart';
 
 void main() {
   test('CRM step is valid only once Zoho is connected', () async {
@@ -58,7 +61,8 @@ void main() {
   });
 
   test('invites reject bad and duplicate emails, then send', () async {
-    final container = ProviderContainer.test();
+    final server = FakeOnboardingRepository();
+    final container = fakeContainer(onboarding: server);
     final invites = container.read(inviteTeamControllerProvider.notifier);
 
     expect(invites.addInvite('nope'), ValidationMessages.emailInvalid);
@@ -67,7 +71,33 @@ void main() {
       invites.addInvite('arjun@skyline.in'),
       InviteTeamController.duplicateMessage,
     );
-    expect(await invites.sendInvites(), isTrue);
-    expect(container.read(inviteTeamControllerProvider).sentCount, 1);
+    expect(await invites.sendInvites(), isA<StepActionSucceeded>());
+    final draft = container.read(inviteTeamControllerProvider);
+    expect(draft.sentCount, 1);
+    expect(draft.invites, isEmpty, reason: 'sent invites leave the list');
+    expect(draft.isValid, isTrue, reason: 'Continue still works after sending');
+    expect(server.sentInvites.single.role, UserRole.salesAgent);
+  });
+
+  test('failed invites stay listed with the server reason', () async {
+    final server = FakeOnboardingRepository()
+      ..inviteFailures = {
+        'neha@skyline.in': 'This email already has an account.',
+      };
+    final container = fakeContainer(onboarding: server);
+    final invites = container.read(inviteTeamControllerProvider.notifier)
+      ..addInvite('arjun@skyline.in')
+      ..addInvite('neha@skyline.in');
+
+    final outcome = await invites.sendInvites();
+
+    expect(outcome, isA<StepActionFailed>());
+    final draft = container.read(inviteTeamControllerProvider);
+    expect(draft.sentCount, 1);
+    expect(draft.invites.single.email, 'neha@skyline.in');
+    expect(draft.errorMessage, contains('already has an account'));
+
+    invites.removeInvite('neha@skyline.in');
+    expect(container.read(inviteTeamControllerProvider).errorMessage, isNull);
   });
 }

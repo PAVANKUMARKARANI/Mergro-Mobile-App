@@ -7,4 +7,7 @@
 - Preserve unrelated user changes. Respect existing `TODO(backend)` markers and don't describe demo behavior as a real integration. Keep Dart files within Mergro's 250-line limit.
 - Record only checks actually run, distinguish verified from unverified behavior, and document unfinished work plus the exact next task if stopping midway. For agent handoffs, inspect Git status and diff, update `skill.md`, and ensure only one agent edits the working tree at a time; don't rely on chat history.
 - Before finishing, run `dart format .`, `flutter analyze` (zero issues) and `flutter test`.
-- No backend in the UI phase. Simulate work with `Future.delayed` and mark it with `// TODO(backend): …`.
+- Auth and onboarding use the real API (`~/Projects/Mergro/server`, see standards.md B3). Features
+  without a backend yet stay simulated with `Future.delayed` and are marked `// TODO(backend): …`.
+- Run against the local backend with `--dart-define=API_BASE_URL=…` (default: `localhost:2282`,
+  or `10.0.2.2:2282` on the Android emulator).

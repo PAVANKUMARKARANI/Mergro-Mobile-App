@@ -5,20 +5,23 @@ import '../../auth/controllers/current_user_controller.dart';
 
 /// Stand-in for the Home Dashboard (out of scope for this phase).
 class HomePlaceholderScreen extends ConsumerWidget {
-  /// Creates the placeholder with its restart callback.
-  const HomePlaceholderScreen({super.key, required this.onRestartPreview});
+  /// Creates the placeholder with its sign-out callback.
+  const HomePlaceholderScreen({super.key, required this.onSignOut});
 
-  /// Clears preview state and returns to the splash; wired by AppRoutes.
-  final VoidCallback onRestartPreview;
+  /// Ends the session and returns to Login; wired by AppRoutes.
+  final VoidCallback onSignOut;
 
-  /// Builds the greeting and the restart button.
+  /// Builds the greeting and the sign-out button.
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final brokerageName = user?.brokerageName ?? '';
     final text = context.textStyles;
     return Scaffold(
       appBar: AppBar(
-        title: Text(user?.brokerageName ?? MergroLogo.wordmarkText),
+        title: Text(
+          brokerageName.isNotEmpty ? brokerageName : MergroLogo.wordmarkText,
+        ),
       ),
       body: SafeArea(
         child: Center(
@@ -42,13 +45,13 @@ class HomePlaceholderScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.xxl),
                 AppButton(
-                  label: 'Restart preview',
+                  label: 'Sign out',
                   variant: AppButtonVariant.secondary,
                   leading: const Icon(
-                    LucideIcons.rotateCcw,
+                    LucideIcons.logOut,
                     size: AppSizes.iconMd,
                   ),
-                  onPressed: onRestartPreview,
+                  onPressed: onSignOut,
                 ),
               ],
             ),

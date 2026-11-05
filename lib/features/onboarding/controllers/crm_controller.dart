@@ -16,6 +16,9 @@ class CrmController extends Notifier<CrmDraft> {
   @override
   CrmDraft build() => const CrmDraft();
 
+  /// Replaces the draft with one saved on the server (resume).
+  void restore(CrmDraft draft) => state = draft;
+
   /// Connects Zoho CRM: Not connected → Connecting… → Connected.
   Future<void> connectZoho() async {
     if (state.zohoStatus != IntegrationStatus.notConnected) return;

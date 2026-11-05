@@ -38,6 +38,7 @@ abstract final class AppRoutes {
   static Widget onboarding() => Builder(
     builder: (context) => OnboardingScreen(
       onFinished: (role) => _replaceAll(context, _onboardingSuccess(role)),
+      onSessionExpired: () => _signOut(context),
     ),
   );
 
@@ -46,9 +47,12 @@ abstract final class AppRoutes {
   static Widget _onboardingSuccess(UserRole role) => Builder(
     builder: (context) => OnboardingSuccessScreen.forRole(
       role: role,
-      onContinue: () {
-        resetOnboarding(ProviderScope.containerOf(context, listen: false));
-        _replaceAll(context, home());
+      onContinue: () async {
+        final container = ProviderScope.containerOf(context, listen: false);
+        resetOnboarding(container);
+        // Picks up the new brokerage name and completed state for Home.
+        await container.read(currentUserProvider.notifier).refresh();
+        if (context.mounted) _replaceAll(context, home());
       },
     ),
   );
@@ -56,7 +60,7 @@ abstract final class AppRoutes {
   /// Home Dashboard placeholder.
   static Widget home() => Builder(
     builder: (context) =>
-        HomePlaceholderScreen(onRestartPreview: () => _restartPreview(context)),
+        HomePlaceholderScreen(onSignOut: () => _signOut(context)),
   );
 
   /// Maps the splash result to a screen.
@@ -72,16 +76,17 @@ abstract final class AppRoutes {
     _replaceAll(context, screen);
   }
 
-  /// Where a freshly signed-in user goes.
-  // TODO(backend): skip onboarding when GET /me says it is already complete.
-  static Widget _afterSignIn(AppUser user) => onboarding();
+  /// Where a freshly signed-in user goes: Home once onboarding is done.
+  static Widget _afterSignIn(AppUser user) =>
+      user.isOnboardingComplete ? home() : onboarding();
 
-  /// Clears the user and all onboarding state, then returns to the splash.
-  static void _restartPreview(BuildContext context) {
+  /// Ends the session, clears all onboarding state and returns to Login.
+  static Future<void> _signOut(BuildContext context) async {
     final container = ProviderScope.containerOf(context, listen: false);
-    container.read(currentUserProvider.notifier).clear();
+    await container.read(currentUserProvider.notifier).signOut();
     resetOnboarding(container);
-    _replaceAll(context, initialScreen());
+    if (!context.mounted) return;
+    _replaceAll(context, login());
   }
 
   /// Replaces the whole stack with [screen] using a 300 ms fade (instant

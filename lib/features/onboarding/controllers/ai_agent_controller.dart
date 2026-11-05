@@ -14,6 +14,9 @@ class AiAgentController extends Notifier<AiAgentDraft> {
   @override
   AiAgentDraft build() => const AiAgentDraft();
 
+  /// Replaces the draft with one saved on the server (resume).
+  void restore(AiAgentDraft draft) => state = draft;
+
   /// Updates the agent name.
   void updateName(String name) => state = state.copyWith(agentName: name);
 
