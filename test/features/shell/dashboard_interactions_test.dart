@@ -9,7 +9,10 @@ import 'dashboard_screens_test.dart' show loaded, pumpScreen;
 void main() {
   testWidgets('lead search with no match offers Clear filters', (tester) async {
     var filterTaps = 0;
-    await pumpScreen(tester, LeadsScreen(onOpenFilters: () => filterTaps++));
+    await pumpScreen(
+      tester,
+      LeadsScreen(onOpenFilters: () => filterTaps++, onOpenLead: (_) {}),
+    );
     await tester.pump(loaded);
 
     await tester.enterText(find.byType(TextField), 'Fatima');
@@ -29,7 +32,7 @@ void main() {
   });
 
   testWidgets('accepting a hot lead updates the inbox', (tester) async {
-    await pumpScreen(tester, const HotLeadsScreen());
+    await pumpScreen(tester, HotLeadsScreen(onOpenLead: (_) {}));
     await tester.pump(loaded);
     expect(find.text('2 waiting · accept within 5 minutes'), findsOneWidget);
 

@@ -6,6 +6,13 @@
 2. Inspect the actual source files and relevant tests before changing anything. Treat `skill.md` as implementation history, not as a substitute for checking current code; reconcile any discrepancy against the source.
 3. Inspect `git status` and the current diff when Git is available. Preserve all unrelated user changes; never discard, revert, or overwrite them.
 
+## Product references
+
+- Screen flow (50 numbered screens): `~/Projects/mobile designs/mergro-screen-flow/mergro-screen-flow.html`.
+- Build plan and status by phase: the "Mergro Build Flow" artifact, local copy
+  `~/Projects/Mergro/mergro-build-flow.html`; keep its Done / UI ready / Next chips current.
+- Backend: `~/Projects/Mergro/server` (its README lists the endpoints the app uses).
+
 ## Implementation rules
 
 - Follow `standards.md` and preserve the existing Flutter feature architecture, Riverpod 3 conventions, design tokens, shared widgets, imperative routing in `lib/app/app_routes.dart`, and testing patterns. Do not copy the standards into this file.

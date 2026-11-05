@@ -7,9 +7,10 @@ import '../../core/theme/app_spacing.dart';
 import 'app_button.dart';
 import 'empty_state.dart';
 import 'info_banner.dart';
+import 'skeleton.dart';
 
-/// Renders an [AsyncValue] as Loading → data | Empty | Error with Retry
-/// (standards A11). Takes the value; never reads providers itself.
+/// Renders an [AsyncValue] as Loading (skeleton) → data | Empty | Error with
+/// Retry (standards A11). Takes the value; never reads providers itself.
 class AsyncValueView<T> extends StatelessWidget {
   /// Creates the view.
   const AsyncValueView({
@@ -21,6 +22,7 @@ class AsyncValueView<T> extends StatelessWidget {
     this.emptyIcon = LucideIcons.inbox,
     this.emptyTitle = 'Nothing here yet',
     this.emptyMessage,
+    this.loading,
   });
 
   /// The loading / data / error value.
@@ -44,6 +46,9 @@ class AsyncValueView<T> extends StatelessWidget {
   /// Message of the empty state.
   final String? emptyMessage;
 
+  /// Placeholder while loading; defaults to a [SkeletonList].
+  final Widget? loading;
+
   /// Builds the state-specific content.
   @override
   Widget build(BuildContext context) {
@@ -64,7 +69,7 @@ class AsyncValueView<T> extends StatelessWidget {
             : ApiException.defaultMessages[ApiErrorKind.unexpected]!,
         onRetry: onRetry,
       ),
-      _ => const Center(child: CircularProgressIndicator()),
+      _ => loading ?? const SkeletonList(),
     };
   }
 }

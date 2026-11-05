@@ -8,7 +8,10 @@ import '../widgets/viewing_tile.dart';
 /// Screen 8: booked viewings for today, tomorrow or the week, by day.
 class ViewingsScreen extends ConsumerWidget {
   /// Creates the screen.
-  const ViewingsScreen({super.key});
+  const ViewingsScreen({super.key, required this.onOpenLead});
+
+  /// Opens the lead's profile (screen 13) by id.
+  final ValueChanged<String> onOpenLead;
 
   /// Builds the range chips and the grouped list.
   @override
@@ -36,7 +39,11 @@ class ViewingsScreen extends ConsumerWidget {
               onRetry: controller.refresh,
               builder: (items) => RefreshIndicator(
                 onRefresh: controller.refresh,
-                child: _ViewingList(viewings: items, range: range),
+                child: _ViewingList(
+                  viewings: items,
+                  range: range,
+                  onOpenLead: onOpenLead,
+                ),
               ),
             ),
           ),
@@ -49,13 +56,20 @@ class ViewingsScreen extends ConsumerWidget {
 /// Viewings in [range], grouped under day headers.
 class _ViewingList extends StatelessWidget {
   /// Creates the list.
-  const _ViewingList({required this.viewings, required this.range});
+  const _ViewingList({
+    required this.viewings,
+    required this.range,
+    required this.onOpenLead,
+  });
 
   /// All loaded viewings, earliest first.
   final List<Viewing> viewings;
 
   /// Selected range.
   final ViewingRange range;
+
+  /// Opens a lead's profile.
+  final ValueChanged<String> onOpenLead;
 
   /// Builds the list or an empty state.
   @override
@@ -93,7 +107,12 @@ class _ViewingList extends StatelessWidget {
         lastDay = day;
       }
       children
-        ..add(ViewingTile(viewing: viewing))
+        ..add(
+          ViewingTile(
+            viewing: viewing,
+            onOpen: () => onOpenLead(viewing.leadId),
+          ),
+        )
         ..add(const SizedBox(height: AppSpacing.xs));
     }
     return ListView(

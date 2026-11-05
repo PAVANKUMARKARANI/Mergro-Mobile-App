@@ -109,6 +109,9 @@ abstract final class AppColors {
   /// Starting opacity of a splash call ring.
   static const double splashRingOpacity = 0.35;
 
+  /// Opacity of the soft shadow above the bottom navigation bar.
+  static const double barShadowOpacity = 0.08;
+
   /// Placeholder brand colours for provider marks until SVG logos exist.
   static const Color googleBlue = Color(0xFF4285F4);
 

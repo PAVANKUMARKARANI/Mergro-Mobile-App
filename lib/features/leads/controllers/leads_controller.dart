@@ -31,6 +31,16 @@ class LeadsController extends AsyncNotifier<List<Lead>> {
     ref.invalidateSelf();
     await future;
   }
+
+  /// Swaps in [lead] after a change made elsewhere (e.g. do-not-contact on
+  /// the lead profile), keeping the list in step without a reload.
+  void replaceLead(Lead lead) {
+    final leads = state.value;
+    if (leads == null) return;
+    state = AsyncData([
+      for (final item in leads) item.id == lead.id ? lead : item,
+    ]);
+  }
 }
 
 /// Search text and filters of the Leads screen.

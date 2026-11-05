@@ -1,10 +1,13 @@
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/theme/theme_mode_controller.dart';
 import '../shared/ui.dart';
 import 'app_routes.dart';
 
-/// Root widget: Material 3 light/dark themes that follow the system setting.
-class MergroApp extends StatelessWidget {
+/// Root widget: Material 3 light/dark themes, following the user's
+/// Light / Dark / System choice (Profile → Appearance).
+class MergroApp extends ConsumerWidget {
   /// Creates the root widget.
   const MergroApp({super.key});
 
@@ -13,13 +16,13 @@ class MergroApp extends StatelessWidget {
 
   /// Builds the [MaterialApp].
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       title: title,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
+      themeMode: ref.watch(themeModeControllerProvider),
       builder: (context, child) => _withStatusBarStyle(context, child),
       home: AppRoutes.initialScreen(),
     );

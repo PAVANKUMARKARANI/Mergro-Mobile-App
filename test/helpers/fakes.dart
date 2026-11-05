@@ -1,7 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mergro_ai_voice_assistant/core/network/api_client.dart';
 import 'package:mergro_ai_voice_assistant/core/network/api_exception.dart';
+import 'package:mergro_ai_voice_assistant/core/storage/theme_preference_store.dart';
 import 'package:mergro_ai_voice_assistant/core/storage/token_storage.dart';
+import 'package:mergro_ai_voice_assistant/core/theme/theme_mode_controller.dart';
 import 'package:mergro_ai_voice_assistant/core/utils/clock.dart';
 import 'package:mergro_ai_voice_assistant/features/auth/models/app_user.dart';
 import 'package:mergro_ai_voice_assistant/features/auth/repositories/auth_repository.dart';
@@ -56,6 +59,27 @@ class InMemoryTokenStorage implements TokenStorage {
 
   @override
   Future<void> clear() async => token = null;
+}
+
+/// In-memory [ThemePreferenceStore]; [failWith] makes every call throw.
+class InMemoryThemePreferenceStore implements ThemePreferenceStore {
+  /// Saved mode.
+  ThemeMode? saved;
+
+  /// Thrown by every call when set.
+  Object? failWith;
+
+  @override
+  Future<ThemeMode?> read() async {
+    if (failWith case final error?) throw error;
+    return saved;
+  }
+
+  @override
+  Future<void> write(ThemeMode mode) async {
+    if (failWith case final error?) throw error;
+    saved = mode;
+  }
 }
 
 /// Scriptable [AuthRepository]. The password "wrong" fails like the server.
@@ -199,9 +223,13 @@ class FakeOnboardingRepository implements OnboardingRepository {
 List<Override> fakeOverrides({
   FakeAuthRepository? auth,
   FakeOnboardingRepository? onboarding,
+  InMemoryThemePreferenceStore? themeStore,
 }) => [
   clockProvider.overrideWith((ref) => Stream.value(DateTime.now())),
   tokenStorageProvider.overrideWithValue(InMemoryTokenStorage()),
+  themePreferenceStoreProvider.overrideWithValue(
+    themeStore ?? InMemoryThemePreferenceStore(),
+  ),
   authRepositoryProvider.overrideWithValue(auth ?? FakeAuthRepository()),
   onboardingRepositoryProvider.overrideWithValue(
     onboarding ?? FakeOnboardingRepository(),

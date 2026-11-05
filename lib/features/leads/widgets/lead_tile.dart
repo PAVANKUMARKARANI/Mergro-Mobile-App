@@ -5,13 +5,21 @@ import 'lead_badges.dart';
 /// One lead in a list: avatar, name, score, source, area, status and age.
 class LeadTile extends StatelessWidget {
   /// Creates the tile.
-  const LeadTile({super.key, required this.lead, required this.now});
+  const LeadTile({
+    super.key,
+    required this.lead,
+    required this.now,
+    this.onTap,
+  });
 
   /// The lead shown.
   final Lead lead;
 
   /// Current time, for "3 min ago".
   final DateTime now;
+
+  /// Opens the lead profile.
+  final VoidCallback? onTap;
 
   /// Builds the tile.
   @override
@@ -20,6 +28,8 @@ class LeadTile extends StatelessWidget {
     final palette = context.palette;
     final temperature = lead.temperature;
     return SurfaceCard(
+      onTap: onTap,
+      semanticLabel: onTap == null ? null : 'Open ${lead.name}',
       accentColor: temperature == LeadTemperature.hot ? palette.error : null,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

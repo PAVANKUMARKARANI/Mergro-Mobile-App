@@ -11,3 +11,7 @@
   without a backend yet stay simulated with `Future.delayed` and are marked `// TODO(backend): …`.
 - Run against the local backend with `--dart-define=API_BASE_URL=…` (default: `localhost:2282`,
   or `10.0.2.2:2282` on the Android emulator).
+- Screen numbers follow the screen flow (`~/Projects/mobile designs/mergro-screen-flow/`); phase
+  status lives in the "Mergro Build Flow" artifact — update its chips when a screen or API lands.
+- Propose an implementation plan and wait for the user's confirmation before starting a new
+  feature.

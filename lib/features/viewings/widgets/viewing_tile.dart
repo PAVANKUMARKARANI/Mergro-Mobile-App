@@ -15,10 +15,13 @@ extension ViewingStatusTone on ViewingStatus {
 /// One viewing: time column, property, lead, agent and status.
 class ViewingTile extends StatelessWidget {
   /// Creates the tile.
-  const ViewingTile({super.key, required this.viewing});
+  const ViewingTile({super.key, required this.viewing, this.onOpen});
 
   /// The viewing shown.
   final Viewing viewing;
+
+  /// Opens the lead profile.
+  final VoidCallback? onOpen;
 
   /// Builds the tile.
   @override
@@ -26,6 +29,7 @@ class ViewingTile extends StatelessWidget {
     final text = context.textStyles;
     final palette = context.palette;
     return SurfaceCard(
+      onTap: onOpen,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -16,6 +16,7 @@ class MetricTile extends StatelessWidget {
     this.caption,
     this.tone = StatusTone.neutral,
     this.onTap,
+    this.isDense = false,
   });
 
   /// What is measured, e.g. "New leads".
@@ -36,6 +37,10 @@ class MetricTile extends StatelessWidget {
   /// Opens the related screen.
   final VoidCallback? onTap;
 
+  /// Compact layout: tinted icon on the left, value and label on the right
+  /// (dashboard grid). The default stacks them vertically.
+  final bool isDense;
+
   /// Builds the tile.
   @override
   Widget build(BuildContext context) {
@@ -54,25 +59,59 @@ class MetricTile extends StatelessWidget {
       semanticLabel: '$label: $value${note == null ? '' : ', $note'}',
       padding: const EdgeInsets.all(AppSpacing.sm),
       child: ExcludeSemantics(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: AppSizes.iconMd, color: iconColor),
-            const SizedBox(height: AppSpacing.xs),
-            Text(value, style: text.titleLarge, maxLines: 1),
-            Text(
-              label,
-              style: text.bodySmall,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (note != null) ...[
-              const SizedBox(height: AppSpacing.xxs),
-              StatusChip(label: note, tone: tone),
-            ],
-          ],
-        ),
+        child: isDense
+            // On its tinted circle the icon uses the tone's paired colour.
+            ? _dense(context, colors.foreground, colors.background)
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, size: AppSizes.iconMd, color: iconColor),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(value, style: text.titleLarge, maxLines: 1),
+                  Text(
+                    label,
+                    style: text.bodySmall,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (note != null) ...[
+                    const SizedBox(height: AppSpacing.xxs),
+                    StatusChip(label: note, tone: tone),
+                  ],
+                ],
+              ),
       ),
+    );
+  }
+
+  /// Icon in a tinted circle, then the value over the label.
+  Widget _dense(BuildContext context, Color iconColor, Color tint) {
+    final text = context.textStyles;
+    return Row(
+      children: [
+        Container(
+          width: AppSizes.cardIconTile,
+          height: AppSizes.cardIconTile,
+          decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+          child: Icon(icon, size: AppSizes.iconMd, color: iconColor),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(value, style: text.titleLarge, maxLines: 1),
+              Text(
+                label,
+                style: text.bodySmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

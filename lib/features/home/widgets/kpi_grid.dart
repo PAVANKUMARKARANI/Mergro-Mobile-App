@@ -62,6 +62,7 @@ class KpiGrid extends ConsumerWidget {
         value: '$value',
         icon: icon,
         tone: tone,
+        isDense: true,
         onTap: () => onOpenTab(tab),
       ),
     );

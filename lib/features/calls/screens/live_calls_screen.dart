@@ -9,7 +9,10 @@ import '../widgets/live_call_tiles.dart';
 /// Screen 6: AI calls in progress and the dial queue.
 class LiveCallsScreen extends ConsumerWidget {
   /// Creates the screen.
-  const LiveCallsScreen({super.key});
+  const LiveCallsScreen({super.key, required this.onOpenCall});
+
+  /// Opens the live call monitor (screen 12) by call id.
+  final ValueChanged<String> onOpenCall;
 
   /// Builds the summary and both lists.
   @override
@@ -27,7 +30,7 @@ class LiveCallsScreen extends ConsumerWidget {
         emptyMessage: 'The AI calls every new lead within 60 seconds.',
         builder: (data) => RefreshIndicator(
           onRefresh: controller.refresh,
-          child: _CallsList(snapshot: data),
+          child: _CallsList(snapshot: data, onOpenCall: onOpenCall),
         ),
       ),
     );
@@ -37,10 +40,13 @@ class LiveCallsScreen extends ConsumerWidget {
 /// Summary tiles, then active calls, then the queue.
 class _CallsList extends StatelessWidget {
   /// Creates the list.
-  const _CallsList({required this.snapshot});
+  const _CallsList({required this.snapshot, required this.onOpenCall});
 
   /// Calls to show.
   final LiveCallsSnapshot snapshot;
+
+  /// Opens a call's monitor.
+  final ValueChanged<String> onOpenCall;
 
   /// Builds the list.
   @override
@@ -97,7 +103,7 @@ class _CallsList extends StatelessWidget {
         if (snapshot.active.isEmpty)
           Text('No calls in progress.', style: context.textStyles.bodySmall),
         for (final call in snapshot.active) ...[
-          LiveCallTile(call: call),
+          LiveCallTile(call: call, onOpen: () => onOpenCall(call.id)),
           const SizedBox(height: AppSpacing.xs),
         ],
         const SizedBox(height: AppSpacing.md),

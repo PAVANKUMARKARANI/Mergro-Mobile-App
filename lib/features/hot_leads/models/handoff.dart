@@ -21,6 +21,7 @@ class Handoff {
   /// Creates a handoff.
   const Handoff({
     required this.id,
+    required this.leadId,
     required this.leadName,
     required this.score,
     required this.summary,
@@ -37,6 +38,9 @@ class Handoff {
 
   /// Stable id.
   final String id;
+
+  /// The lead this handoff is about (opens its profile).
+  final String leadId;
 
   /// Lead's name.
   final String leadName;
@@ -85,6 +89,7 @@ class Handoff {
   }) {
     return Handoff(
       id: id,
+      leadId: leadId,
       leadName: leadName,
       score: score,
       summary: summary,

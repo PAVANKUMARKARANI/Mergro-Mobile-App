@@ -28,6 +28,15 @@ class ViewingsController extends AsyncNotifier<List<Viewing>> {
     ref.invalidateSelf();
     await future;
   }
+
+  /// Adds a viewing booked elsewhere (Book viewing), keeping time order.
+  void addViewing(Viewing viewing) {
+    final items = state.value;
+    if (items == null) return;
+    state = AsyncData(
+      [...items, viewing]..sort((a, b) => a.startsAt.compareTo(b.startsAt)),
+    );
+  }
 }
 
 /// Which day range the Viewings screen shows.

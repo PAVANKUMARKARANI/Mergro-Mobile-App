@@ -9,10 +9,17 @@ import '../widgets/lead_tile.dart';
 /// search, Hot/Warm/Cold chips and a filter sheet.
 class LeadsScreen extends ConsumerStatefulWidget {
   /// Creates the screen with its navigation callback.
-  const LeadsScreen({super.key, required this.onOpenFilters});
+  const LeadsScreen({
+    super.key,
+    required this.onOpenFilters,
+    required this.onOpenLead,
+  });
 
   /// Opens the filter sheet (screen 11).
   final VoidCallback onOpenFilters;
+
+  /// Opens a lead's profile (screen 13) by id.
+  final ValueChanged<String> onOpenLead;
 
   /// Creates the state owning the search field controller.
   @override
@@ -37,7 +44,8 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
   Widget build(BuildContext context) {
     final filters = ref.watch(leadFiltersProvider);
     final filterController = ref.read(leadFiltersProvider.notifier);
-    final allLeads = ref.watch(leadsControllerProvider).value ?? const [];
+    // Null while loading, so the chips don't claim zero leads.
+    final allLeads = ref.watch(leadsControllerProvider).value;
     final sheetCount = filters.sheetFilterCount;
     return Scaffold(
       appBar: AppBar(
@@ -81,8 +89,10 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
               options: LeadTemperature.values,
               selected: filters.temperatures,
               labelOf: (band) {
-                final count = allLeads.where((l) => l.temperature == band);
-                return '${band.label} (${count.length})';
+                final leads = allLeads;
+                if (leads == null) return band.label;
+                final count = leads.where((l) => l.temperature == band).length;
+                return '${band.label} ($count)';
               },
               onToggled: (band) => filterController.showOnly(
                 filters.temperatures.contains(band) ? null : band,
@@ -130,7 +140,11 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
               '${items.length} lead${items.length == 1 ? '' : 's'} · newest first',
               style: context.textStyles.labelSmall,
             )
-          : LeadTile(lead: items[index - 1], now: now),
+          : LeadTile(
+              lead: items[index - 1],
+              now: now,
+              onTap: () => widget.onOpenLead(items[index - 1].id),
+            ),
     );
   }
 

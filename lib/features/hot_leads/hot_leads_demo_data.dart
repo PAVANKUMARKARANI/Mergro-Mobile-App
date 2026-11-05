@@ -8,6 +8,7 @@ abstract final class HotLeadsDemoData {
     return [
       Handoff(
         id: 'handoff-01',
+        leadId: 'lead-04',
         leadName: 'Fatima Sheikh',
         score: 88,
         area: 'Indiranagar',
@@ -25,6 +26,7 @@ abstract final class HotLeadsDemoData {
       ),
       Handoff(
         id: 'handoff-02',
+        leadId: 'lead-02',
         leadName: 'Ananya Iyer',
         score: 91,
         area: 'Koramangala',
@@ -38,6 +40,7 @@ abstract final class HotLeadsDemoData {
       ),
       Handoff(
         id: 'handoff-03',
+        leadId: 'lead-08',
         leadName: 'Sneha Kulkarni',
         score: 79,
         area: 'Koramangala',

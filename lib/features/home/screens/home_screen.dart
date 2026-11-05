@@ -3,15 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/ui.dart';
 import '../../auth/controllers/current_user_controller.dart';
 import '../../calls/controllers/live_calls_controller.dart';
-import '../../calls/widgets/live_call_tiles.dart';
 import '../../hot_leads/controllers/hot_leads_controller.dart';
 import '../../hot_leads/models/handoff.dart';
-import '../../hot_leads/widgets/handoff_card.dart';
+import '../../hot_leads/widgets/hot_lead_row.dart';
 import '../../shell/models/app_tab.dart';
 import '../../viewings/controllers/viewings_controller.dart';
 import '../../viewings/models/viewing.dart';
-import '../../viewings/widgets/viewing_tile.dart';
 import '../controllers/home_controller.dart';
+import '../widgets/dashboard_rows.dart';
+import '../widgets/dashboard_skeleton.dart';
 import '../widgets/kpi_grid.dart';
 import '../widgets/preview_section.dart';
 import '../widgets/speed_to_lead_card.dart';
@@ -20,10 +20,21 @@ import '../widgets/speed_to_lead_card.dart';
 /// today's viewings.
 class HomeScreen extends ConsumerWidget {
   /// Creates the dashboard with its navigation callback.
-  const HomeScreen({super.key, required this.onOpenTab});
+  const HomeScreen({
+    super.key,
+    required this.onOpenTab,
+    required this.onOpenLead,
+    required this.onOpenCall,
+  });
 
   /// Opens another main destination ("See all", KPI taps, profile).
   final ValueChanged<AppTab> onOpenTab;
+
+  /// Opens a lead's profile (screen 13) by id.
+  final ValueChanged<String> onOpenLead;
+
+  /// Opens a live call's monitor (screen 12) by id.
+  final ValueChanged<String> onOpenCall;
 
   /// "Good morning" / "Good afternoon" / "Good evening".
   static String greetingFor(DateTime now) => now.hour < 12
@@ -88,21 +99,8 @@ class HomeScreen extends ConsumerWidget {
                   message: "Couldn't load today's numbers. Pull to refresh.",
                 ),
               ],
-              _ => [const Center(child: CircularProgressIndicator())],
+              _ => [const DashboardSummarySkeleton()],
             },
-            const SizedBox(height: AppSpacing.xl),
-            PreviewSection(
-              title: 'Live now',
-              value: ref.watch(
-                liveCallsControllerProvider.select(
-                  (calls) => calls.whenData((data) => data.active),
-                ),
-              ),
-              emptyText: 'No AI calls in progress.',
-              itemBuilder: (call) => LiveCallTile(call: call),
-              onSeeAll: () => onOpenTab(AppTab.liveCalls),
-              onRetry: ref.read(liveCallsControllerProvider.notifier).refresh,
-            ),
             const SizedBox(height: AppSpacing.lg),
             PreviewSection<Handoff>(
               title: 'Hot leads waiting',
@@ -116,15 +114,33 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               emptyText: 'No hot leads waiting. Nice work.',
-              itemBuilder: (handoff) => HandoffCard(
+              isGrouped: true,
+              limit: 3,
+              itemBuilder: (handoff) => HotLeadRow(
                 handoff: handoff,
-                isCompact: true,
+                onOpen: () => onOpenLead(handoff.leadId),
                 onAccept: () => ref
                     .read(hotLeadsControllerProvider.notifier)
                     .accept(handoff.id),
               ),
               onSeeAll: () => onOpenTab(AppTab.hotLeads),
               onRetry: ref.read(hotLeadsControllerProvider.notifier).refresh,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            PreviewSection(
+              title: 'Live now',
+              value: ref.watch(
+                liveCallsControllerProvider.select(
+                  (calls) => calls.whenData((data) => data.active),
+                ),
+              ),
+              emptyText: 'No AI calls in progress.',
+              itemBuilder: (call) =>
+                  LiveCallRow(call: call, onOpen: () => onOpenCall(call.id)),
+              limit: 3,
+              isGrouped: true,
+              onSeeAll: () => onOpenTab(AppTab.liveCalls),
+              onRetry: ref.read(liveCallsControllerProvider.notifier).refresh,
             ),
             const SizedBox(height: AppSpacing.lg),
             PreviewSection<Viewing>(
@@ -146,7 +162,11 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               emptyText: 'No viewings booked for today.',
-              itemBuilder: (viewing) => ViewingTile(viewing: viewing),
+              itemBuilder: (viewing) => ViewingRow(
+                viewing: viewing,
+                onOpen: () => onOpenLead(viewing.leadId),
+              ),
+              isGrouped: true,
               onSeeAll: () => onOpenTab(AppTab.viewings),
               onRetry: ref.read(viewingsControllerProvider.notifier).refresh,
             ),

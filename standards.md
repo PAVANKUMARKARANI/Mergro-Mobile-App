@@ -194,10 +194,18 @@ Suggested PR split for Mergro: theme and shared widgets → splash → login →
   screen sends the user back to Login.
 - Tokens live only in `TokenStorage` (secure storage; memory only when "Remember me" is off).
   Never log them.
-- Features without a backend yet (SSO, Zoho, calendars, phone OTP, voice samples) keep
-  `Future.delayed` simulations or an "unavailable" message, each marked
+- Features without a backend yet (SSO, Zoho, calendars, phone OTP, voice samples, and the shell
+  screens 4–11: leads, calls, handoffs, viewings, nurture, dashboard numbers) keep
+  `Future.delayed` simulations with `*_demo_data.dart` data or an "unavailable" message, each marked
   `// TODO(backend): <the API call that goes here>`. Never present them as real.
 - All dummy text, lists and sample values live in `*_demo_data.dart` files.
+
+### B3a. Loading, empty and error states (A11)
+- Lists and data screens use `AsyncValueView`: skeleton placeholders while loading (never a lone
+  spinner), `EmptyState` when empty, error banner with Retry on failure.
+- Skeletons (`SkeletonPulse`, `SkeletonBox`, `SkeletonRow`, `SkeletonList`) mirror the loaded
+  layout so nothing jumps, and stay still with reduced motion.
+- Live timers read `clockProvider` (1 s tick); tests pin it through `fakeOverrides()`.
 
 ### B4. File and code rules
 - **Hard limit: every Dart file is ≤ 250 lines**, split by responsibility.
@@ -214,10 +222,13 @@ Suggested PR split for Mergro: theme and shared widgets → splash → login →
 ### B6. Design and accessibility
 - Use the design tokens from the spec (navy + teal, Sora/Figtree/JetBrains Mono, 4–40 spacing,
   8/12/16/24 radius, 52 px inputs and buttons, 48 px minimum touch target).
-- Support light and dark themes (following the system), text scale up to 1.3 without overflow,
-  and reduced motion (`MediaQuery.disableAnimations`).
-- Test at 360–430 px width. At ≥ 600 px, centre Splash and Login in a 440 px column. At ≥ 900 px,
-  Onboarding shows a step rail.
+- Support light and dark themes — the user picks Light / Dark / System in Profile
+  (`themeModeControllerProvider`, default System) — text scale up to 1.3 without overflow, and
+  reduced motion (`MediaQuery.disableAnimations`). Colours that work on one surface may vanish on
+  another in dark mode (e.g. the warning tone's foreground); check both modes.
+- Test at 360–430 px width. At ≥ 600 px, centre Splash and Login in a 440 px column and the app
+  shell swaps its bottom bar for a side rail. At ≥ 900 px, Onboarding shows a step rail.
+- Bottom bars hold at most 5 tabs (`AppTab.barTabsFor(role)`); other destinations go under More.
 - Icon-only buttons have `Semantics`/`tooltip` labels, and text contrast is ≥ 4.5:1.
 
 ### B7. Definition of done (per change)

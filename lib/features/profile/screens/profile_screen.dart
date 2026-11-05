@@ -1,16 +1,24 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/theme_mode_controller.dart';
 import '../../../shared/ui.dart';
 import '../../auth/controllers/current_user_controller.dart';
 import '../controllers/profile_alerts_controller.dart';
 
-/// Screen 10: account, role, alert preferences and sign-out.
+/// Screen 10: account, role, alert preferences, appearance and sign-out.
 class ProfileScreen extends ConsumerWidget {
   /// Creates the screen with its sign-out callback.
   const ProfileScreen({super.key, required this.onSignOut});
 
   /// Ends the session; wired by AppRoutes.
   final VoidCallback onSignOut;
+
+  /// Labels of the appearance choices.
+  static const Map<ThemeMode, String> themeLabels = {
+    ThemeMode.system: 'System',
+    ThemeMode.light: 'Light',
+    ThemeMode.dark: 'Dark',
+  };
 
   /// Asks for confirmation, then signs out.
   Future<void> _confirmSignOut(BuildContext context) async {
@@ -121,6 +129,18 @@ class ProfileScreen extends ConsumerWidget {
             'Quiet hours ${alerts.quietStart.label24}–${alerts.quietEnd.label24}: '
             'only hot leads alert you.',
             style: text.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          const SectionHeader(
+            title: 'Appearance',
+            subtitle: 'System follows your phone’s light or dark setting.',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          ToggleChipGroup<ThemeMode>(
+            options: ThemeMode.values,
+            selected: {ref.watch(themeModeControllerProvider)},
+            labelOf: (mode) => themeLabels[mode] ?? mode.name,
+            onToggled: ref.read(themeModeControllerProvider.notifier).select,
           ),
           const SizedBox(height: AppSpacing.xxl),
           AppButton(

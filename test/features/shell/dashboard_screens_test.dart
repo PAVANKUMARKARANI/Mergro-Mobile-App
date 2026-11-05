@@ -10,6 +10,7 @@ import 'package:mergro_ai_voice_assistant/features/nurture/screens/nurture_scree
 import 'package:mergro_ai_voice_assistant/features/profile/screens/profile_screen.dart';
 import 'package:mergro_ai_voice_assistant/features/shell/screens/more_screen.dart';
 import 'package:mergro_ai_voice_assistant/features/viewings/screens/viewings_screen.dart';
+import 'package:mergro_ai_voice_assistant/shared/widgets/skeleton.dart';
 
 import '../../helpers/fakes.dart';
 import '../../helpers/test_app.dart';
@@ -19,11 +20,17 @@ const Duration loaded = Duration(milliseconds: 1100);
 
 /// Screens of the shell, with text that proves their data rendered.
 final Map<String, (Widget, String)> screens = {
-  'Home': (HomeScreen(onOpenTab: (_) {}), 'Speed to lead · today (P95)'),
-  'Leads': (LeadsScreen(onOpenFilters: () {}), 'Rohan Desai'),
-  'Live calls': (const LiveCallsScreen(), 'Priyanka Reddy'),
-  'Hot leads': (const HotLeadsScreen(), 'Ananya Iyer'),
-  'Viewings': (const ViewingsScreen(), 'Today'),
+  'Home': (
+    HomeScreen(onOpenTab: (_) {}, onOpenLead: (_) {}, onOpenCall: (_) {}),
+    'Speed to lead · today (P95)',
+  ),
+  'Leads': (
+    LeadsScreen(onOpenFilters: () {}, onOpenLead: (_) {}),
+    'Rohan Desai',
+  ),
+  'Live calls': (LiveCallsScreen(onOpenCall: (_) {}), 'Priyanka Reddy'),
+  'Hot leads': (HotLeadsScreen(onOpenLead: (_) {}), 'Ananya Iyer'),
+  'Viewings': (ViewingsScreen(onOpenLead: (_) {}), 'Today'),
   'Nurture': (const NurtureScreen(), 'Karthik Rao'),
   'Profile': (ProfileScreen(onSignOut: () {}), 'Hot-lead alerts'),
   'More': (MoreScreen(onOpenTab: (_) {}), 'Viewings'),
@@ -64,10 +71,30 @@ void main() {
     }
   }
 
-  testWidgets('lists show a spinner while loading', (tester) async {
-    await pumpScreen(tester, const HotLeadsScreen());
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    await tester.pump(loaded);
+  testWidgets('lists show a skeleton, not a spinner, while loading', (
+    tester,
+  ) async {
+    await pumpScreen(tester, HotLeadsScreen(onOpenLead: (_) {}));
+    expect(find.byType(SkeletonList), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.bySemanticsLabel('Loading'), findsOneWidget);
+    await tester.pump(loaded);
+    expect(find.byType(SkeletonList), findsNothing);
+  });
+
+  testWidgets('the dashboard loads with placeholders in its own layout', (
+    tester,
+  ) async {
+    await pumpScreen(
+      tester,
+      HomeScreen(onOpenTab: (_) {}, onOpenLead: (_) {}, onOpenCall: (_) {}),
+    );
+    expect(find.byType(SkeletonPulse), findsWidgets);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(find.text('Hot leads waiting'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pump(loaded);
+    expect(find.byType(SkeletonPulse), findsNothing);
   });
 }

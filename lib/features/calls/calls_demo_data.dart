@@ -14,16 +14,18 @@ abstract final class CallsDemoData {
       active: [
         LiveCall(
           id: 'call-01',
+          leadId: 'lead-10',
           leadName: 'Priyanka Reddy',
           source: LeadSource.magicBricks,
           area: 'Hebbal',
-          startedAt: ago(214),
+          startedAt: ago(240),
           stage: CallStage.booking,
           lastLine: 'AI: "I have Saturday at 11 AM or 4 PM. Which suits you?"',
           replyLatencyMs: 610,
         ),
         LiveCall(
           id: 'call-02',
+          leadId: 'lead-01',
           leadName: 'Rohan Desai',
           source: LeadSource.acres99,
           area: 'Whitefield',
@@ -34,6 +36,7 @@ abstract final class CallsDemoData {
         ),
         LiveCall(
           id: 'call-03',
+          leadId: 'lead-13',
           leadName: 'Deepak Joshi',
           source: LeadSource.website,
           area: 'Koramangala',

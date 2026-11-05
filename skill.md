@@ -15,7 +15,13 @@ state for the first three screens. Since 2026-11-05, auth and onboarding talk to
    - Sales agent: 3 steps
    - Team lead: 2 steps
 
-The Home Dashboard is a placeholder in this phase.
+4. App shell with role-based tabs and the main screens: Home dashboard (4), Leads + search (5, 11),
+   Live calls (6), Hot lead inbox (7), Viewings (8), Nurture (9), Profile (10) — **UI with demo
+   data**; their API calls are listed in the TODO(backend) table.
+
+Specs: screen flow `~/Projects/mobile designs/mergro-screen-flow/mergro-screen-flow.html` (screen
+numbers 1–50); build plan and status: the "Mergro Build Flow" artifact
+(https://claude.ai/artifact/VawbTdKRgcpdCLzhs2eyBV, local copy `~/Projects/Mergro/mergro-build-flow.html`).
 
 ## Progress checklist
 - [x] Project setup: packages (native splash config comes with the Splash step)
@@ -32,7 +38,12 @@ The Home Dashboard is a placeholder in this phase.
 - [x] App shell: role-based bottom tabs (side rail ≥ 600 px), "More" for the rest
 - [x] Screen 4 Home dashboard · 5 Leads + 11 Search & filters · 6 Live calls · 7 Hot lead inbox ·
       8 Viewings · 9 Nurture · 10 Profile (UI with demo data, `TODO(backend)` marked)
-- [ ] Detail screens 12–20 (live call monitor, lead profile, call detail, transcript, …)
+- [x] Dashboard density pass, compact hot-lead rows, tab bar polish
+- [x] Light / Dark / System appearance choice (Profile), skeleton loading on every list
+- [x] Part A: Lead profile 13 with qualification 16, score 17, activity 19, consent 20, calls,
+      call-back / message / do-not-contact (UI with demo data); lead rows open it
+- [x] Part B: live call monitor 12, call detail 14, transcript 15, book viewing 18 (UI with demo data)
+- [ ] Handoff module 21–26, journeys 27–32, analytics 33–38, admin 39–44, compliance 45–50
 - [x] Controller unit tests
 - [x] Backend: networking core (`ApiClient`, `ApiException`, secure `TokenStorage`)
 - [x] Backend: login, session restore at splash, logout, forgot password (`/api/auth/*`)
@@ -48,6 +59,148 @@ The Home Dashboard is a placeholder in this phase.
 **Decisions / deviations:** …
 **Verification:** flutter analyze ✅ · tests ✅ · checked light/dark/360px/1.3x
 -->
+
+### 2026-11-05 — Backend: leads API (not yet connected in the app)
+**Built in `~/Projects/Mergro/server`, branch `feature/leads-api`:** `Lead` and `LeadEvent` models
+(enum names match the app); `POST /api/leads/ingest` webhook (per-brokerage `x-mergro-key`, stored
+hashed; explicit call consent required; phone → E.164; repeat enquiries within 30 days merge;
+opted-out leads stay suppressed; 120/min per key); eligibility check (suppressed, call consent,
+brokerage calling hours in its time zone, next window); `GET /api/leads` (search, filters, paging;
+agents see own + unassigned), `/summary`, `/:id`, `/:id/timeline`, consent withdrawal, suppress,
+call-back and messages (recorded only until telephony / messaging exist); admin
+`/api/brokerage/ingest-key`. `apistats` now also redacts phone, email, name, text and `q`. The seed
+adds the 13 demo leads to the demo admin's brokerage ("Do Systems" after onboarding) and prints its
+ingestion key once.
+**Verification:** 37/37 scripted API checks against the `mergro` DB (webhook auth, validation,
+dedupe, consent, filters, agent scope, brokerage isolation, actions, redaction) and 14/14
+eligibility / phone rule checks; demo data reset and re-seeded afterwards. **Not done:** the app
+still uses demo data for leads — next step is connecting Leads, the lead profile and the dashboard
+counts to these endpoints.
+
+### 2026-11-05 — Part B: live call monitor (12), call detail (14), transcript (15), book viewing (18)
+**Built (UI with demo data):**
+- Live call monitor (12), from a Live calls tile or a Home "Live now" row: source, area, Live / Ended
+  chip, running timer (frozen at the final length once ended), AI reply latency, stage tracker
+  (dialing → disclosure → qualifying → booking → wrap-up), "Captured so far" answers filling in,
+  live transcript, "Open lead profile". Lines appear as call time passes: `liveCallMonitorProvider`
+  replays the demo script (`call_script_demo_data.dart`) against `clockProvider`, so it is live in
+  the app and deterministic in tests (no extra timers). Take-over / warm transfer is a note +
+  `TODO(backend)` until telephony exists.
+- Call detail (14), from the profile's call history (rows now tappable): outcome, date, length,
+  score chip, AI summary, next step, qualification, "Read transcript (n lines)" (disabled when
+  nobody answered). Transcript (15): chat bubbles (AI left / lead right) with mm:ss stamps;
+  phone numbers and emails masked (`core/utils/pii_mask.dart`). No audio playback (needs an
+  approved package and recordings).
+- Book viewing (18), a fourth profile action: listing cards (3 in the lead's area), day chips
+  (today + 6), hourly slots 10 AM–6 PM (taken and past ones struck through), tap to hold for
+  5 minutes with a ticking `HoldBanner` (red when expired), Confirm (enabled only with a hold).
+  Booking updates the profile (status "Viewing booked", timeline event) and the Viewings list,
+  pops back and confirms in a snack bar. An expired hold is refused with a clear message.
+- Demo data: lead-13 Deepak Joshi added for the in-progress call; `LiveCall.leadId`; call ids
+  are `call-<leadId>-<n>` (`leadIdOfCall`). Call detail and lead profile providers disable
+  Riverpod's automatic retry.
+**Files:** added `features/calls/{call_script_demo_data.dart, models/call_transcript.dart,
+controllers/call_providers.dart, screens/{live_call_monitor,call_detail,transcript}_screen.dart,
+widgets/transcript_view.dart}`, `features/viewings/{booking_demo_data.dart, models/booking.dart,
+controllers/book_viewing_controller.dart, screens/book_viewing_screen.dart, widgets/slot_picker.dart}`,
+`core/utils/pii_mask.dart`; changed live call model / demo / tiles / screen, `dashboard_rows.dart`,
+`home_screen.dart`, profile screen / actions bar / call history card / controller
+(`recordViewingBooked`), `viewings_controller.dart` (`addViewing`), `leads_demo_data.dart`,
+`app_routes.dart`, `app_routes_shell.dart`; tests under `test/features/{calls,viewings}/`.
+**Verification:** `dart format .` ✅ · `flutter analyze` 0 issues ✅ · `flutter test` 170/170 ✅
+(24 new: PII masking, script invariants, monitor stage / answers from the clock, call detail per
+outcome, booking hold / confirm / profile + Viewings updates, hold banner countdown and expiry,
+all four screens at 360 px / 1.3× light + dark, Live calls → monitor → profile → book → confirmed).
+Rendered the monitor, call detail, transcript (dark) and booking with a hold and reviewed them;
+fixed "a Row house" → "a row house" in the script. **Not verified:** on a device.
+
+### 2026-11-05 — Part A: Lead profile (13) with screens 16, 17, 19, 20
+**Built (UI with demo data):**
+- `features/lead_detail`: tapping a lead (Leads list), a hot lead (Home row, inbox card) or a
+  viewing (Home row, Viewings tile) pushes `LeadProfileScreen` (live call rows wait for Part B).
+- Header: name, phone, email, score / status / source chips, property and budget, owner, capture
+  time; red "Do not contact" banner when suppressed.
+- Actions: Call back (AI call-back, needs call consent), Message (sheet: only consented channels,
+  3 templates, 500 chars), Do not contact (confirm dialog; withdraws every channel, sets status
+  "Do not contact", updates the Leads list via `LeadsController.replaceLead`). Results show in
+  snack bars; actions lock while one runs and after suppression.
+- Qualification (16): budget, area, timeline, property type, pre-approval with confidence bars;
+  "Not answered yet" before the first call. Lead score (17): half gauge (`CustomPainter`) with band,
+  base 50 plus reason codes and points that add up to the score. Activity (19): rail timeline,
+  newest first. Consent (20): per-channel switch with evidence and date; agents can only record a
+  withdrawal (confirm dialog) — granting stays with the lead. Calls: history with outcome chips.
+- Demo profiles derive from the lead (`lead_profile_demo_data.dart`, `lead_activity_demo_data.dart`)
+  so they match the Leads list. `Handoff` and `Viewing` gained `leadId`; `Lead.copyWith`;
+  `AppTextField.maxLines`.
+- `leadProfileControllerProvider` (family by lead id) disables Riverpod's automatic retry, so a
+  missing lead shows "This lead no longer exists." with Retry at once instead of ~30 s of retries.
+**Files:** added `lib/features/lead_detail/**` (2 models, 2 demo data, controller, screen, 8
+widgets); changed lead / handoff / viewing models and demo data, `leads_controller.dart`,
+`lead_tile.dart`, `hot_lead_row.dart`, `handoff_card.dart`, `viewing_tile.dart`,
+`dashboard_rows.dart`, Home / Leads / Hot leads / Viewings screens (`onOpenLead`),
+`app_routes.dart`, `app_routes_shell.dart`, `app_text_field.dart`; tests under
+`test/features/lead_detail/`.
+**Decisions:** sections live on one scrolling profile rather than separate screens (16, 17, 19,
+20 are cards); call history rows are not tappable until call detail (14) exists in Part B;
+recording playback stays out (needs an approved audio package).
+**Verification:** `dart format .` ✅ · `flutter analyze` 0 issues ✅ · `flutter test` 146/146 ✅
+(19 new: demo-data invariants incl. score reasons = score, controller actions and guards,
+profile at 360 px / 1.3× light + dark for hot / unscored / suppressed leads, do-not-contact flow,
+Leads tab → profile → message sheet → sent). Rendered the profile (light, dark, gauge, composer)
+and reviewed it; fixed "Captured 3 nov" → "Captured on 3 Nov". **Not verified:** on a device.
+
+### 2026-11-05 — Skeleton loading states
+**Built:** the dashboard showed a lone spinner plus bare progress bars while loading. Now: shared
+`SkeletonPulse` / `SkeletonBox` / `SkeletonRow` / `SkeletonList` (`shared/widgets/skeleton.dart`, no
+package; gentle 0.9 s pulse, still with reduced motion, announced as "Loading"). Home shows
+`DashboardSummarySkeleton` (speed card + 4 tiles) and `SectionRowsSkeleton` in each section, shaped
+like the loaded layout so nothing jumps. `AsyncValueView` now defaults to `SkeletonList`, so Leads,
+Live calls, Hot leads, Viewings and Nurture load the same way (optional `loading:` override). Leads
+chips show "Hot / Warm / Cold" without counts until loaded (no fake "(0)").
+**Verification:** `dart format .` ✅ · `flutter analyze` 0 issues ✅ · `flutter test` 127/127 ✅
+(loading tests now assert skeletons and no spinner). Rendered the loading Home (light + dark) and
+Leads at 440 × 956 and reviewed them. **Not verified:** on a device.
+
+### 2026-11-05 — Light / Dark / System appearance choice
+**Built:** Profile → Appearance lets the user pick System (default), Light or Dark; the whole app
+switches at once (status-bar icons follow). `ThemeModeController` (`core/theme/theme_mode_controller.dart`)
+starts on System, restores the saved choice, and saves changes through `ThemePreferenceStore`
+(`core/storage/theme_preference_store.dart`, flutter_secure_storage — no new package). It is a device
+preference, so sign-out keeps it. Storage failures are logged and never block the choice.
+`MergroApp` is now a `ConsumerWidget` reading the mode. Tests use `InMemoryThemePreferenceStore`
+(`fakeOverrides(themeStore:)`).
+**Verification:** `dart format .` ✅ · `flutter analyze` 0 issues ✅ · `flutter test` 126/126 ✅
+(6 new: default, restore, save, broken store, root app mode, Profile switch). Rendered Leads, Live
+calls, Hot leads, Viewings, Nurture, Profile and More in dark mode and Profile in light, and reviewed
+them: no contrast or layout problems found. **Not verified:** on a device.
+
+### 2026-11-05 — Compact hot-lead rows and tab bar polish
+**Built:** Home's "Hot leads waiting" now uses `HotLeadRow` (`hot_leads/widgets/hot_lead_row.dart`)
+grouped in one card: score badge, name, ticking countdown text (red when urgent; grey in light /
+amber in dark otherwise), area and budget, and a small 36 px "Accept" (48 px tap target) — about
+half the height of the old card. `HandoffCard` lost its unused compact mode (the inbox keeps the full
+card). Shared `slaCountdown()` + `SlaCountdownText`. Tab bar: 68 px height, selected label violet and
+semibold, unselected grey, pill indicator, hairline top border and soft upward shadow (`_BarFrame`)
+so it separates from scrolling content. New tokens `AppSizes.compactButtonHeight`,
+`AppSizes.navigationBarHeight`, `AppColors.barShadowOpacity`.
+**Verification:** `dart format .` ✅ · `flutter analyze` 0 issues ✅ · `flutter test` 120/120 ✅;
+rendered Home at 440 × 956 in light and dark and reviewed it. **Not verified:** on a device.
+
+### 2026-11-05 — Dashboard density and order (visibility pass)
+**Built:** after a device screenshot showed only the speed card, the tiles and one call above the
+fold: speed-to-lead card made compact (title + status, value with "target 60 s", bar, one caption);
+KPI tiles use a new dense `MetricTile` layout (`isDense`: tinted icon left, value + label right);
+sections reordered by urgency — Hot leads waiting, Live now, Today's viewings — with counts in the
+titles; live calls and viewings show as compact rows grouped in one card (`PreviewSection.isGrouped`,
+`home/widgets/dashboard_rows.dart`: `LiveCallRow`, `ViewingRow`); compact hot-lead cards put a short
+"Accept" on the countdown line (wraps below on small phones / 1.3× text).
+**Files:** added `home/widgets/dashboard_rows.dart`; changed `metric_tile.dart`,
+`speed_to_lead_card.dart`, `kpi_grid.dart`, `preview_section.dart`, `home_screen.dart`,
+`handoff_card.dart`.
+**Verification:** `dart format .` ✅ · `flutter analyze` 0 issues ✅ · `flutter test` 120/120 ✅
+(the overflow test caught the countdown + Accept line at 360 px / 1.3× before the `Wrap` fix).
+Rendered Home at 440 × 956 (light, dark, scrolled) with real fonts and reviewed it.
+**Not verified:** on a device.
 
 ### 2026-11-05 — App shell, Home dashboard and main screens 4–11 (UI, demo data)
 **Built:**
@@ -442,6 +595,11 @@ Changed: `lib/main.dart`, `pubspec.yaml`. Removed the scaffold `test/widget_test
 | `hotLeadsControllerProvider` | `AsyncNotifierProvider.autoDispose<…, List<Handoff>>` | Shell | handoffs (waiting first); `accept(id)` → `bool`, `refresh()` |
 | `viewingsControllerProvider` / `viewingRangeProvider` | `AsyncNotifierProvider.autoDispose<…, List<Viewing>>` / `NotifierProvider.autoDispose<…, ViewingRange>` | Shell / Viewings | viewings (earliest first); selected range |
 | `nurtureControllerProvider` / `nurtureStatusFilterProvider` | `AsyncNotifierProvider.autoDispose<…, List<NurtureEnrollment>>` / `NotifierProvider.autoDispose<…, NurtureStatus?>` | Nurture | enrollments; status filter |
+| `themeModeControllerProvider` / `themePreferenceStoreProvider` | `NotifierProvider<ThemeModeController, ThemeMode>` / `Provider<ThemePreferenceStore>` | App-wide | Light / Dark / System; `select(mode)` saves it |
+| `leadProfileControllerProvider(leadId)` | `AsyncNotifierProvider.autoDispose.family<LeadProfileController, LeadProfile, String>` (no auto-retry) | Lead profile + message sheet | lead, email, qualification, scoreReasons, timeline, consents, calls, busyAction; `requestCallBack()`, `sendMessage()`, `withdrawConsent()`, `markDoNotContact()` → `LeadActionOutcome`; `refresh()` |
+| `liveCallMonitorProvider(callId)` | `Provider.autoDispose.family<AsyncValue<LiveCallMonitor>, String>` | Live call monitor | call, lines so far, qualification, stage, isEnded (re-evaluates every clock tick) |
+| `callDetailProvider(callId)` | `FutureProvider.autoDispose.family<CallDetail, String>` (no auto-retry) | Call detail + transcript | outcome, summary, nextStep, qualification, score, transcript |
+| `bookViewingControllerProvider(leadId)` | `NotifierProvider.autoDispose.family<BookViewingController, BookViewingState, String>` | Book viewing | properties, days, day, slots, propertyId, heldSlot, holdUntil, isHolding, isBooking, errorMessage; `selectProperty()`, `selectDay()`, `holdSlot()` → `bool`, `confirm()` → `LeadActionOutcome` |
 | `profileAlertsControllerProvider` | `NotifierProvider.autoDispose<…, HotLeadAlertsDraft>` | Profile | push, SMS fallback, sound (local until the profile API) |
 | `stepValidProvider(step)` | `Provider.family<bool, OnboardingStepId>` | Onboarding | Whether Continue is enabled for that step |
 | `forgotPasswordControllerProvider` | `NotifierProvider.autoDispose<ForgotPasswordController, ForgotPasswordState>` | Forgot-password sheet | email, emailError, isSending, isSent; `sendResetLink()` → `bool` (real API) |
@@ -466,6 +624,18 @@ forgot password, onboarding save/skip/resume/complete, team invites. Still simul
 | `hot_leads/controllers/hot_leads_controller.dart` | `accept()` simulated | `POST /api/handoffs/{id}/accept`; 409 when another agent took it |
 | `viewings/controllers/viewings_controller.dart` | `build()` demo viewings | `GET /api/viewings?from=&to=` (own for agents, all for admins / leads) |
 | `nurture/controllers/nurture_controller.dart` | `build()` demo enrollments | `GET /api/nurture/enrollments` (cadence engine W11–W12) |
+| `lead_detail/controllers/lead_profile_controller.dart` | `build()` demo profile | `GET /api/leads/{id}` + `GET /api/leads/{id}/timeline` |
+| `lead_detail/controllers/lead_profile_controller.dart` | `requestCallBack()` | `POST /api/leads/{id}/call-back` (queues an AI call) |
+| `lead_detail/controllers/lead_profile_controller.dart` | `sendMessage()` | `POST /api/leads/{id}/messages {channel, text}` |
+| `lead_detail/controllers/lead_profile_controller.dart` | `withdrawConsent()` | `PUT /api/leads/{id}/consent {channel, granted: false}` |
+| `lead_detail/controllers/lead_profile_controller.dart` | `markDoNotContact()` | `POST /api/leads/{id}/suppress` (suppression list, stops journeys) |
+| `calls/controllers/call_providers.dart` | `liveCallMonitorProvider` replays a demo script | socket.io `call:{id}:transcript` + `call:{id}:fields` |
+| `calls/controllers/call_providers.dart` | `callDetailProvider` demo | `GET /api/calls/{id}` + `GET /api/calls/{id}/transcript` |
+| `calls/screens/live_call_monitor_screen.dart` | take over / warm transfer note | `POST /api/calls/{id}/transfer` (telephony integration) |
+| `calls/screens/transcript_screen.dart` | no audio | `GET /api/calls/{id}/recording` + an approved audio package |
+| `viewings/controllers/book_viewing_controller.dart` | demo listings + slots | `GET /api/listings?leadId=`, `GET /api/viewings/slots?propertyId=&date=` |
+| `viewings/controllers/book_viewing_controller.dart` | `holdSlot()` / `selectDay()` | `POST /api/viewings/hold` (409 = taken), `DELETE /api/viewings/hold/{id}` |
+| `viewings/controllers/book_viewing_controller.dart` | `confirm()` | `POST /api/viewings {holdId, leadId, propertyId}` (SMS + CRM) |
 | `home/controllers/home_controller.dart` | speed-to-lead = 42 s | `GET /api/analytics/speed-to-lead?period=today` |
 | `profile/controllers/profile_alerts_controller.dart` | defaults, local edits | `GET` / `PUT /api/profile/alerts` (data already stored by onboarding) |
 
@@ -488,6 +658,8 @@ forgot password, onboarding save/skip/resume/complete, team invites. Still simul
   16 widget files incl. `onboarding_load_view`; `services/onboarding_api_service.dart`,
   `repositories/onboarding_repository.dart`; 2 screens) and the shared `app_dropdown_field`, `toggle_chip_group`,
   `setting_switch_tile`, `time_range_field`, `core/utils/{time_of_day_format,set_toggle}.dart`
+- Lead profile: `lib/features/lead_detail/**`
+- Calls and booking: `lib/features/calls/{call_script_demo_data.dart,models/call_transcript.dart,controllers/call_providers.dart,screens/*,widgets/transcript_view.dart}`, `lib/features/viewings/{booking_demo_data.dart,models/booking.dart,controllers/book_viewing_controller.dart,screens/book_viewing_screen.dart,widgets/slot_picker.dart}`, `lib/core/utils/pii_mask.dart`
 - Shell and main screens: `lib/features/{shell,home,leads,calls,hot_leads,viewings,nurture,profile}/**`,
   `lib/app/app_routes_shell.dart`, `lib/core/utils/{time_format,clock}.dart`,
   `lib/shared/widgets/{surface_card,initials_avatar,metric_tile,empty_state,async_value_view}.dart`
@@ -516,11 +688,16 @@ inboxes are public, so reset/invite emails to them can be read by anyone: demo u
 
 **State at handoff (2026-11-05):** backend integration committed on
 `feature/backend-auth-onboarding` (app) and `feature/mergro-auth-onboarding-api` (backend). The
-shell / dashboard work is on `feature/app-shell-dashboard` (app), **not committed yet**.
+shell / dashboard work is on `feature/app-shell-dashboard` (app): commit `99eeb7d` has the shell
+and screens 4–11; the later passes (dashboard density, compact hot leads, tab bar, theme choice,
+skeleton loading, doc updates, Parts A and B — screens 12–20) are **not committed yet**. Nothing is pushed.
 
-**Next recommended task:** detail screens 12–20 (live call monitor, lead profile, call detail,
-transcript, qualification, score, book viewing, timeline, consent) as UI with demo data, making
-lead / call rows tappable. Also still open: run the app on an Android emulator and an iOS simulator against the
+**Next recommended task:** connect the app's Leads list, lead profile (consent, suppress,
+call-back, message) and dashboard counts to the new leads API (backend branch
+`feature/leads-api`), after the user confirms. Otherwise: propose the next phase and wait. Candidates: the
+handoff module (21–26: hot-lead alert, handoff detail, accept & call back, viewing calendar,
+booking confirmed, viewing outcome), or start connecting screens to the backend once the lead /
+call API exists. Parts A and B (screens 12–20) are done but not committed. Also still open: run the app on an Android emulator and an iOS simulator against the
 local API and walk through admin, agent and team-lead onboarding (including Retry with the server
 stopped and sign-out); check light/dark, 360 px and 1.3× on the new loading/error/invite states;
 then build a page (web or in-app) for `/changeRecoverPassword/:enEmail?token=` so reset and invite

@@ -1,7 +1,7 @@
 import '../../../shared/ui.dart';
 import '../models/dashboard_summary.dart';
 
-/// Navy hero card: today's P95 time-to-call against the 60 s target.
+/// Compact navy card: today's P95 time-to-call against the 60 s target.
 class SpeedToLeadCard extends StatelessWidget {
   /// Creates the card.
   const SpeedToLeadCard({super.key, required this.summary});
@@ -17,13 +17,20 @@ class SpeedToLeadCard extends StatelessWidget {
     final target = summary.speedToLeadTargetSeconds;
     final ratio = (summary.speedToLeadSeconds / target).clamp(0.0, 1.0);
     final status = summary.isOnTarget ? 'On target' : 'Over target';
+    final muted = text.bodySmall?.copyWith(color: AppColors.headerSubtitle);
     return Semantics(
       label:
           'Speed to lead today: ${summary.speedToLeadSeconds} seconds, '
-          'target $target seconds, $status',
+          'target $target seconds, $status, '
+          '${summary.contactRatePercent} percent reached',
       excludeSemantics: true,
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.sm,
+        ),
         decoration: BoxDecoration(
           color: palette.brandNavy,
           borderRadius: AppRadius.cardAll,
@@ -33,15 +40,14 @@ class SpeedToLeadCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(LucideIcons.timer, color: AppColors.headerSubtitle),
+                const Icon(
+                  LucideIcons.timer,
+                  size: AppSizes.iconMd,
+                  color: AppColors.headerSubtitle,
+                ),
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(
-                  child: Text(
-                    'Speed to lead · today (P95)',
-                    style: text.labelMedium?.copyWith(
-                      color: AppColors.headerSubtitle,
-                    ),
-                  ),
+                  child: Text('Speed to lead · today (P95)', style: muted),
                 ),
                 StatusChip(
                   label: status,
@@ -51,17 +57,22 @@ class SpeedToLeadCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              TimeFormat.seconds(summary.speedToLeadSeconds),
-              style: text.displaySmall?.copyWith(color: AppColors.white),
+            const SizedBox(height: AppSpacing.xxs),
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.end,
+              spacing: AppSpacing.xs,
+              children: [
+                Text(
+                  TimeFormat.seconds(summary.speedToLeadSeconds),
+                  style: text.headlineSmall?.copyWith(color: AppColors.white),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+                  child: Text('target $target s', style: muted),
+                ),
+              ],
             ),
-            Text(
-              'Every new lead called within $target s · '
-              '${summary.contactRatePercent}% reached today',
-              style: text.bodySmall?.copyWith(color: AppColors.headerSubtitle),
-            ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.xs),
             ClipRRect(
               borderRadius: AppRadius.pill,
               child: LinearProgressIndicator(
@@ -72,6 +83,11 @@ class SpeedToLeadCard extends StatelessWidget {
                   alpha: AppColors.splashRingOpacity,
                 ),
               ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '${summary.contactRatePercent}% of today\'s leads reached by the AI',
+              style: muted,
             ),
           ],
         ),

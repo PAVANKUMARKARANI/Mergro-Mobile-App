@@ -8,7 +8,10 @@ import '../widgets/handoff_card.dart';
 /// Screen 7: hot leads handed to the sales team, with SLA timers.
 class HotLeadsScreen extends ConsumerWidget {
   /// Creates the screen.
-  const HotLeadsScreen({super.key});
+  const HotLeadsScreen({super.key, required this.onOpenLead});
+
+  /// Opens the lead's profile (screen 13) by id.
+  final ValueChanged<String> onOpenLead;
 
   /// Builds the inbox.
   @override
@@ -52,6 +55,7 @@ class HotLeadsScreen extends ConsumerWidget {
                 final handoff = items[index - 1];
                 return HandoffCard(
                   handoff: handoff,
+                  onOpen: () => onOpenLead(handoff.leadId),
                   onAccept: () => controller.accept(handoff.id),
                 );
               },

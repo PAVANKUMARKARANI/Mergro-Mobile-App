@@ -27,10 +27,13 @@ class ElapsedTimeText extends ConsumerWidget {
 /// A call in progress: lead, stage, timer, latest line and AI latency.
 class LiveCallTile extends StatelessWidget {
   /// Creates the tile.
-  const LiveCallTile({super.key, required this.call});
+  const LiveCallTile({super.key, required this.call, this.onOpen});
 
   /// The call shown.
   final LiveCall call;
+
+  /// Opens the live call monitor.
+  final VoidCallback? onOpen;
 
   /// Builds the tile.
   @override
@@ -39,6 +42,10 @@ class LiveCallTile extends StatelessWidget {
     final palette = context.palette;
     final isFast = call.replyLatencyMs < CallsDemoData.naturalLatencyMs;
     return SurfaceCard(
+      onTap: onOpen,
+      semanticLabel: onOpen == null
+          ? null
+          : 'Monitor call with ${call.leadName}',
       accentColor: palette.accent,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

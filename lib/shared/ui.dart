@@ -31,6 +31,7 @@ export 'widgets/metric_tile.dart';
 export 'widgets/section_header.dart';
 export 'widgets/selectable_card.dart';
 export 'widgets/setting_switch_tile.dart';
+export 'widgets/skeleton.dart';
 export 'widgets/status_chip.dart';
 export 'widgets/step_progress_header.dart';
 export 'widgets/surface_card.dart';

@@ -19,6 +19,18 @@ abstract final class LeadsDemoData {
         now.subtract(Duration(days: days, hours: hours, minutes: minutes));
     return [
       Lead(
+        id: 'lead-13',
+        name: 'Deepak Joshi',
+        phone: '+91 98451 66023',
+        source: LeadSource.website,
+        status: LeadStatus.calling,
+        area: 'Koramangala',
+        budget: '₹1 – 1.2 Cr',
+        propertyType: '3 BHK apartment',
+        createdAt: ago(minutes: 1),
+        lastActivity: 'AI call in progress',
+      ),
+      Lead(
         id: 'lead-01',
         name: 'Rohan Desai',
         phone: '+91 98450 12210',
@@ -27,7 +39,7 @@ abstract final class LeadsDemoData {
         area: 'Whitefield',
         budget: '₹85 L – 1 Cr',
         propertyType: '3 BHK apartment',
-        createdAt: ago(minutes: 1),
+        createdAt: ago(minutes: 2),
         lastActivity: 'AI call in progress',
       ),
       Lead(

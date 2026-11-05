@@ -1,9 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/ui.dart';
+import 'dashboard_skeleton.dart';
 
 /// A dashboard section: header with "See all", then the first [limit] items
-/// of [value], with compact loading and error states.
+/// of [value], with skeleton loading and a compact error state.
 class PreviewSection<T> extends StatelessWidget {
   /// Creates the section.
   const PreviewSection({
@@ -15,6 +16,7 @@ class PreviewSection<T> extends StatelessWidget {
     required this.onSeeAll,
     required this.onRetry,
     this.limit = 2,
+    this.isGrouped = false,
   });
 
   /// Section title.
@@ -38,15 +40,20 @@ class PreviewSection<T> extends StatelessWidget {
   /// How many items to show.
   final int limit;
 
+  /// Shows the items as rows inside one card with dividers, instead of
+  /// separate cards.
+  final bool isGrouped;
+
   /// Builds the header and preview.
   @override
   Widget build(BuildContext context) {
     final text = context.textStyles;
+    final count = value.value?.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SectionHeader(
-          title: title,
+          title: count == null ? title : '$title ($count)',
           trailing: TextButton(
             onPressed: onSeeAll,
             child: Text('See all', semanticsLabel: 'See all: $title'),
@@ -56,6 +63,19 @@ class PreviewSection<T> extends StatelessWidget {
         ...switch (value) {
           AsyncData(:final value) when value.isEmpty => [
             Text(emptyText, style: text.bodySmall),
+          ],
+          AsyncData(:final value) when isGrouped => [
+            SurfaceCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  for (final (index, item) in value.take(limit).indexed) ...[
+                    if (index > 0) const Divider(height: AppSizes.borderThin),
+                    itemBuilder(item),
+                  ],
+                ],
+              ),
+            ),
           ],
           AsyncData(:final value) => [
             for (final item in value.take(limit)) ...[
@@ -78,14 +98,7 @@ class PreviewSection<T> extends StatelessWidget {
               ],
             ),
           ],
-          _ => [
-            const ClipRRect(
-              borderRadius: AppRadius.pill,
-              child: LinearProgressIndicator(
-                minHeight: AppSizes.progressBarHeight,
-              ),
-            ),
-          ],
+          _ => [SectionRowsSkeleton(rows: limit)],
         },
       ],
     );

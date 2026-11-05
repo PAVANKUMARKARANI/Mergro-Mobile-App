@@ -45,6 +45,7 @@ class Viewing {
   /// Creates a viewing.
   const Viewing({
     required this.id,
+    required this.leadId,
     required this.leadName,
     required this.property,
     required this.address,
@@ -56,6 +57,9 @@ class Viewing {
 
   /// Stable id.
   final String id;
+
+  /// The lead who is viewing (opens their profile).
+  final String leadId;
 
   /// Who is viewing.
   final String leadName;

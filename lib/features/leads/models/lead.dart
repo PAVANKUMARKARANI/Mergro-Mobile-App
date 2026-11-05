@@ -142,4 +142,22 @@ class Lead {
     final value = score;
     return value == null ? null : LeadTemperature.fromScore(value);
   }
+
+  /// Copies with a new [status] and [lastActivity].
+  Lead copyWith({LeadStatus? status, String? lastActivity}) {
+    return Lead(
+      id: id,
+      name: name,
+      phone: phone,
+      source: source,
+      status: status ?? this.status,
+      area: area,
+      budget: budget,
+      propertyType: propertyType,
+      createdAt: createdAt,
+      lastActivity: lastActivity ?? this.lastActivity,
+      score: score,
+      ownerName: ownerName,
+    );
+  }
 }

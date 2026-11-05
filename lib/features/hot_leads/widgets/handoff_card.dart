@@ -4,7 +4,19 @@ import '../../../core/utils/clock.dart';
 import '../../../shared/ui.dart';
 import '../models/handoff.dart';
 
-/// Ticking "Accept in 3:12" / "Overdue 0:45" chip for a waiting handoff.
+/// "Accept in 3:12" / "Overdue 0:45" for [dueAt] at [now], and whether it
+/// is urgent (last minute or overdue).
+({String label, bool isUrgent}) slaCountdown(DateTime dueAt, DateTime now) {
+  final left = dueAt.difference(now);
+  return (
+    label: left.isNegative
+        ? 'Overdue ${TimeFormat.stopwatch(-left)}'
+        : 'Accept in ${TimeFormat.stopwatch(left)}',
+    isUrgent: left.inSeconds < 60,
+  );
+}
+
+/// Ticking SLA countdown chip for a waiting handoff.
 class SlaCountdownChip extends ConsumerWidget {
   /// Creates the chip.
   const SlaCountdownChip({super.key, required this.dueAt});
@@ -16,14 +28,37 @@ class SlaCountdownChip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final now = ref.watch(clockProvider).value ?? DateTime.now();
-    final left = dueAt.difference(now);
-    final isOverdue = left.isNegative;
+    final sla = slaCountdown(dueAt, now);
     return StatusChip(
-      label: isOverdue
-          ? 'Overdue ${TimeFormat.stopwatch(-left)}'
-          : 'Accept in ${TimeFormat.stopwatch(left)}',
-      tone: left.inSeconds < 60 ? StatusTone.error : StatusTone.warning,
+      label: sla.label,
+      tone: sla.isUrgent ? StatusTone.error : StatusTone.warning,
       icon: LucideIcons.timer,
+    );
+  }
+}
+
+/// Ticking SLA countdown as coloured text (compact rows).
+class SlaCountdownText extends ConsumerWidget {
+  /// Creates the text.
+  const SlaCountdownText({super.key, required this.dueAt});
+
+  /// Accept-by deadline.
+  final DateTime dueAt;
+
+  /// Builds the countdown; red when urgent, otherwise amber in dark mode
+  /// and secondary grey in light mode (amber text on white is unreadable).
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
+    final sla = slaCountdown(dueAt, now);
+    final palette = context.palette;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final calm = isDark ? palette.highlight : palette.textSecondary;
+    return Text(
+      sla.label,
+      style: context.textStyles.labelMedium?.copyWith(
+        color: sla.isUrgent ? palette.error : calm,
+      ),
     );
   }
 }
@@ -35,7 +70,7 @@ class HandoffCard extends StatelessWidget {
     super.key,
     required this.handoff,
     required this.onAccept,
-    this.isCompact = false,
+    this.onOpen,
   });
 
   /// The handoff shown.
@@ -44,8 +79,8 @@ class HandoffCard extends StatelessWidget {
   /// Accepts it; null hides the button.
   final VoidCallback? onAccept;
 
-  /// Hides the summary and reasons (dashboard preview).
-  final bool isCompact;
+  /// Opens the lead profile.
+  final VoidCallback? onOpen;
 
   /// Builds the card.
   @override
@@ -55,6 +90,7 @@ class HandoffCard extends StatelessWidget {
     final isWaiting = handoff.status == HandoffStatus.waiting;
     final accept = onAccept;
     return SurfaceCard(
+      onTap: onOpen,
       accentColor: isWaiting ? palette.error : palette.success,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -96,7 +132,7 @@ class HandoffCard extends StatelessWidget {
                     icon: LucideIcons.userCheck,
                   ),
           ),
-          if (!isCompact) ..._details(context),
+          ..._details(context),
           if (isWaiting && accept != null) ...[
             const SizedBox(height: AppSpacing.sm),
             AppButton(

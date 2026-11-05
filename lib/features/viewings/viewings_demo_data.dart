@@ -9,6 +9,7 @@ abstract final class ViewingsDemoData {
     return [
       Viewing(
         id: 'viewing-01',
+        leadId: 'lead-08',
         leadName: 'Sneha Kulkarni',
         property: '3 BHK · Prestige Lakeside',
         address: '6th Block, Koramangala',
@@ -18,6 +19,7 @@ abstract final class ViewingsDemoData {
       ),
       Viewing(
         id: 'viewing-02',
+        leadId: 'lead-12',
         leadName: 'Lakshmi Pillai',
         property: '3 BHK · Sobha Dream Acres',
         address: 'Sarjapur Road',
@@ -27,6 +29,7 @@ abstract final class ViewingsDemoData {
       ),
       Viewing(
         id: 'viewing-03',
+        leadId: 'lead-08',
         leadName: 'Sneha Kulkarni',
         property: '3 BHK · Brigade Meadows',
         address: '5th Block, Koramangala',
@@ -35,6 +38,7 @@ abstract final class ViewingsDemoData {
       ),
       Viewing(
         id: 'viewing-04',
+        leadId: 'lead-03',
         leadName: 'Vikram Shetty',
         property: '2 BHK · Mantri Flora',
         address: 'Sector 2, HSR Layout',
@@ -43,6 +47,7 @@ abstract final class ViewingsDemoData {
       ),
       Viewing(
         id: 'viewing-05',
+        leadId: 'lead-10',
         leadName: 'Priyanka Reddy',
         property: 'Row house · Embassy Springs',
         address: 'Hebbal',
@@ -53,6 +58,7 @@ abstract final class ViewingsDemoData {
       ),
       Viewing(
         id: 'viewing-06',
+        leadId: 'lead-04',
         leadName: 'Fatima Sheikh',
         property: 'Villa · Adarsh Palm Retreat',
         address: 'Outer Ring Road, Indiranagar',

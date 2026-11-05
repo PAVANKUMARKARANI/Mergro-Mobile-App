@@ -75,6 +75,12 @@ abstract final class AppSizes {
   /// Size of the icon tile in a selectable card.
   static const double cardIconTile = 40;
 
+  /// Height of small in-row buttons (the tap target is padded to 48).
+  static const double compactButtonHeight = 36;
+
+  /// Height of the bottom navigation bar.
+  static const double navigationBarHeight = 68;
+
   /// Small logo tile (headers).
   static const double logoSm = 32;
 

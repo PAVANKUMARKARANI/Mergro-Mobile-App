@@ -32,6 +32,7 @@ class LiveCall {
   /// Creates a call.
   const LiveCall({
     required this.id,
+    required this.leadId,
     required this.leadName,
     required this.source,
     required this.area,
@@ -43,6 +44,9 @@ class LiveCall {
 
   /// Stable id.
   final String id;
+
+  /// The lead being called.
+  final String leadId;
 
   /// Who is being called.
   final String leadName;

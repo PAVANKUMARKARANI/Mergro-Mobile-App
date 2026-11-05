@@ -91,10 +91,18 @@ abstract final class AppTheme {
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.buttonAll),
       ),
       navigationBarTheme: NavigationBarThemeData(
+        height: AppSizes.navigationBarHeight,
+        elevation: 0,
         backgroundColor: palette.surface,
         indicatorColor: palette.violetContainer,
+        indicatorShape: const StadiumBorder(),
         surfaceTintColor: AppColors.transparent,
-        labelTextStyle: WidgetStatePropertyAll(textTheme.labelSmall),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? textTheme.labelMedium?.copyWith(color: palette.violet)
+              : textTheme.labelSmall?.copyWith(color: palette.textSecondary),
+        ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
             size: AppSizes.iconLg,

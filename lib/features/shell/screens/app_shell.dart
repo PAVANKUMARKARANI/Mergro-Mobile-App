@@ -83,19 +83,21 @@ class _AppShellState extends ConsumerState<AppShell> {
             )
           : Scaffold(
               body: body,
-              bottomNavigationBar: NavigationBar(
-                selectedIndex: index,
-                onDestinationSelected: onSelected,
-                destinations: [
-                  for (final tab in tabs)
-                    NavigationDestination(
-                      icon: _TabIcon(tab: tab, hotWaiting: hotWaiting),
-                      label: tab.label,
-                      tooltip: tab == AppTab.hotLeads && hotWaiting > 0
-                          ? '${tab.label}, $hotWaiting waiting'
-                          : tab.label,
-                    ),
-                ],
+              bottomNavigationBar: _BarFrame(
+                child: NavigationBar(
+                  selectedIndex: index,
+                  onDestinationSelected: onSelected,
+                  destinations: [
+                    for (final tab in tabs)
+                      NavigationDestination(
+                        icon: _TabIcon(tab: tab, hotWaiting: hotWaiting),
+                        label: tab.label,
+                        tooltip: tab == AppTab.hotLeads && hotWaiting > 0
+                            ? '${tab.label}, $hotWaiting waiting'
+                            : tab.label,
+                      ),
+                  ],
+                ),
               ),
             ),
     );
@@ -122,6 +124,38 @@ class _TabIcon extends StatelessWidget {
       isLabelVisible: hotWaiting > 0,
       label: Text('$hotWaiting'),
       child: icon,
+    );
+  }
+}
+
+/// Hairline top border and a soft upward shadow, so the bar stands apart
+/// from content scrolling beneath it.
+class _BarFrame extends StatelessWidget {
+  /// Wraps the navigation bar.
+  const _BarFrame({required this.child});
+
+  /// The navigation bar.
+  final Widget child;
+
+  /// Builds the frame.
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.surface,
+        border: Border(top: BorderSide(color: palette.border)),
+        boxShadow: [
+          BoxShadow(
+            color: palette.brandNavy.withValues(
+              alpha: AppColors.barShadowOpacity,
+            ),
+            blurRadius: AppSpacing.md,
+            offset: const Offset(0, -AppSpacing.xxs),
+          ),
+        ],
+      ),
+      child: child,
     );
   }
 }

@@ -30,6 +30,7 @@ class AppTextField extends StatefulWidget {
     this.autofillHints,
     this.inputFormatters,
     this.maxLength,
+    this.maxLines = 1,
     this.onChanged,
     this.onSubmitted,
     this.onTap,
@@ -84,6 +85,10 @@ class AppTextField extends StatefulWidget {
   /// Maximum length; the counter is hidden.
   final int? maxLength;
 
+  /// Visible lines; above 1 the field grows for multi-line text (not for
+  /// passwords).
+  final int maxLines;
+
   /// Called on every edit.
   final ValueChanged<String>? onChanged;
 
@@ -133,6 +138,8 @@ class _AppTextFieldState extends State<AppTextField> {
           autofillHints: widget.autofillHints,
           inputFormatters: widget.inputFormatters,
           maxLength: widget.maxLength,
+          maxLines: widget.isPassword ? 1 : widget.maxLines,
+          minLines: 1,
           onChanged: widget.onChanged,
           onSubmitted: widget.onSubmitted,
           onTap: widget.onTap,
