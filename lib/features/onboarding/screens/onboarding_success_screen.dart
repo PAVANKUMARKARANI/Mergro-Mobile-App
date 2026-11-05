@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import '../../../shared/ui.dart';
 import '../../auth/models/app_user.dart';
 import '../widgets/success_check_painter.dart';
 
 /// Celebration after onboarding: a self-drawing teal check with rippling
-/// call rings, a message and a single action.
+/// call rings and a message. Moves on by itself [AppDurations.successHold]
+/// after the animation ends; there is no button.
 class OnboardingSuccessScreen extends StatefulWidget {
   /// Creates the screen.
   const OnboardingSuccessScreen({
@@ -11,7 +14,6 @@ class OnboardingSuccessScreen extends StatefulWidget {
     required this.title,
     required this.message,
     required this.onContinue,
-    this.buttonLabel = 'Go to dashboard',
   });
 
   /// Success copy for [role]: admins launch Mergro, staff are "all set".
@@ -37,10 +39,7 @@ class OnboardingSuccessScreen extends StatefulWidget {
   /// Supporting text.
   final String message;
 
-  /// Primary button text.
-  final String buttonLabel;
-
-  /// Leaves the success screen.
+  /// Leaves the success screen (opens the dashboard); called exactly once.
   final VoidCallback onContinue;
 
   /// Creates the state owning the animation controller.
@@ -61,6 +60,8 @@ class _OnboardingSuccessScreenState extends State<OnboardingSuccessScreen>
   late final Animation<double> _firstRing = _interval(0.3, 0.9, Curves.easeOut);
   late final Animation<double> _secondRing = _interval(0.45, 1, Curves.easeOut);
   bool _hasStarted = false;
+  bool _hasContinued = false;
+  Timer? _holdTimer;
 
   /// Builds a curved sub-animation of the controller.
   Animation<double> _interval(double begin, double end, Curve curve) =>
@@ -77,14 +78,29 @@ class _OnboardingSuccessScreenState extends State<OnboardingSuccessScreen>
     _hasStarted = true;
     if (MediaQuery.disableAnimationsOf(context)) {
       _controller.value = 1;
+      _startHold();
     } else {
-      _controller.forward();
+      _controller.forward().whenComplete(_startHold);
     }
   }
 
-  /// Releases the controller.
+  /// Waits [AppDurations.successHold], then continues to the dashboard.
+  void _startHold() {
+    if (!mounted || _holdTimer != null) return;
+    _holdTimer = Timer(AppDurations.successHold, _continue);
+  }
+
+  /// Calls [OnboardingSuccessScreen.onContinue] once.
+  void _continue() {
+    if (!mounted || _hasContinued) return;
+    _hasContinued = true;
+    widget.onContinue();
+  }
+
+  /// Cancels the pending move and releases the controller.
   @override
   void dispose() {
+    _holdTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -128,9 +144,10 @@ class _OnboardingSuccessScreenState extends State<OnboardingSuccessScreen>
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
-                  AppButton(
-                    label: widget.buttonLabel,
-                    onPressed: widget.onContinue,
+                  Text(
+                    'Opening your dashboard…',
+                    textAlign: TextAlign.center,
+                    style: text.labelSmall,
                   ),
                 ],
               ),

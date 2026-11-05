@@ -90,6 +90,28 @@ abstract final class AppTheme {
         ),
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.buttonAll),
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: palette.surface,
+        indicatorColor: palette.violetContainer,
+        surfaceTintColor: AppColors.transparent,
+        labelTextStyle: WidgetStatePropertyAll(textTheme.labelSmall),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            size: AppSizes.iconLg,
+            color: states.contains(WidgetState.selected)
+                ? palette.violet
+                : palette.textSecondary,
+          ),
+        ),
+      ),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: palette.surface,
+        indicatorColor: palette.violetContainer,
+        selectedIconTheme: IconThemeData(color: palette.violet),
+        unselectedIconTheme: IconThemeData(color: palette.textSecondary),
+        selectedLabelTextStyle: textTheme.labelMedium,
+        unselectedLabelTextStyle: textTheme.labelSmall,
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: palette.background,
         foregroundColor: palette.textPrimary,

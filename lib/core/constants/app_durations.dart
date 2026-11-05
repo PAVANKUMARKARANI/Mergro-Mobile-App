@@ -23,4 +23,8 @@ abstract final class AppDurations {
 
   /// Success screen check-draw and ring animation.
   static const Duration successCelebration = Duration(milliseconds: 1600);
+
+  /// Pause on the success screen after its animation, before the dashboard
+  /// opens by itself.
+  static const Duration successHold = Duration(seconds: 2);
 }

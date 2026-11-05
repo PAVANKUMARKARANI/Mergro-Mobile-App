@@ -6,13 +6,26 @@ import '../features/auth/screens/login_screen.dart';
 import '../features/auth/widgets/company_sso_sheet.dart';
 import '../features/auth/widgets/forgot_password_sheet.dart';
 import '../features/auth/widgets/request_access_sheet.dart';
-import '../features/home/screens/home_placeholder_screen.dart';
+import '../features/calls/screens/live_calls_screen.dart';
+import '../features/home/screens/home_screen.dart';
+import '../features/hot_leads/screens/hot_leads_screen.dart';
+import '../features/leads/screens/leads_screen.dart';
+import '../features/leads/widgets/lead_filter_sheet.dart';
+import '../features/nurture/screens/nurture_screen.dart';
 import '../features/onboarding/controllers/onboarding_providers.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../features/onboarding/screens/onboarding_success_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
+import '../features/shell/controllers/app_shell_controller.dart';
+import '../features/shell/models/app_tab.dart';
+import '../features/shell/screens/app_shell.dart';
+import '../features/shell/screens/more_screen.dart';
 import '../features/splash/models/splash_destination.dart';
 import '../features/splash/screens/splash_screen.dart';
+import '../features/viewings/screens/viewings_screen.dart';
 import '../shared/ui.dart';
+
+part 'app_routes_shell.dart';
 
 /// All app navigation in one place. Screens receive navigation callbacks
 /// from here and never push routes themselves.
@@ -57,10 +70,12 @@ abstract final class AppRoutes {
     ),
   );
 
-  /// Home Dashboard placeholder.
+  /// The signed-in app: Home dashboard and role-based tabs.
   static Widget home() => Builder(
-    builder: (context) =>
-        HomePlaceholderScreen(onSignOut: () => _signOut(context)),
+    builder: (context) => AppShell(
+      tabBuilder: (tab) =>
+          _ShellRoutes.tabRoot(context, tab, () => _signOut(context)),
+    ),
   );
 
   /// Maps the splash result to a screen.

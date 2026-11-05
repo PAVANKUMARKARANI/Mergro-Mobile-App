@@ -136,16 +136,53 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('success screen draws without overflow', (tester) async {
+  testWidgets('success screen has no button and opens the dashboard by '
+      'itself 2 s after the animation', (tester) async {
+    var continued = 0;
     await pumpTestApp(
       tester,
       OnboardingSuccessScreen.forRole(
         role: UserRole.brokerageAdmin,
-        onContinue: () {},
+        onContinue: () => continued++,
       ),
     );
-    await tester.pump(const Duration(seconds: 2));
+    expect(find.byType(FilledButton), findsNothing);
+
+    // 1.6 s animation + 2 s hold = 3.6 s. Frames every 100 ms, like a device.
+    await _pumpFrames(tester, const Duration(milliseconds: 3400));
     expect(find.text('Mergro is live'), findsOneWidget);
+    expect(continued, 0);
     expect(tester.takeException(), isNull);
+
+    await _pumpFrames(tester, const Duration(milliseconds: 400));
+    expect(continued, 1);
+    await _pumpFrames(tester, const Duration(seconds: 3));
+    expect(continued, 1, reason: 'continues only once');
   });
+
+  testWidgets('with reduced motion it still waits 2 s, then continues', (
+    tester,
+  ) async {
+    var continued = 0;
+    await pumpTestApp(
+      tester,
+      OnboardingSuccessScreen.forRole(
+        role: UserRole.salesAgent,
+        onContinue: () => continued++,
+      ),
+      disableAnimations: true,
+    );
+    await tester.pump(const Duration(milliseconds: 1900));
+    expect(continued, 0);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(continued, 1);
+  });
+}
+
+/// Advances [duration] drawing a frame every 100 ms.
+Future<void> _pumpFrames(WidgetTester tester, Duration duration) async {
+  const frame = Duration(milliseconds: 100);
+  for (var elapsed = Duration.zero; elapsed < duration; elapsed += frame) {
+    await tester.pump(frame);
+  }
 }

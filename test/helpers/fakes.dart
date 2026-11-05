@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mergro_ai_voice_assistant/core/network/api_client.dart';
 import 'package:mergro_ai_voice_assistant/core/network/api_exception.dart';
 import 'package:mergro_ai_voice_assistant/core/storage/token_storage.dart';
+import 'package:mergro_ai_voice_assistant/core/utils/clock.dart';
 import 'package:mergro_ai_voice_assistant/features/auth/models/app_user.dart';
 import 'package:mergro_ai_voice_assistant/features/auth/repositories/auth_repository.dart';
 import 'package:mergro_ai_voice_assistant/features/onboarding/models/agent_setup_drafts.dart';
@@ -193,11 +194,13 @@ class FakeOnboardingRepository implements OnboardingRepository {
   }
 }
 
-/// Overrides that keep tests off the network and secure storage.
+/// Overrides that keep tests off the network and secure storage, and stop
+/// the clock (no periodic timers left running after a widget test).
 List<Override> fakeOverrides({
   FakeAuthRepository? auth,
   FakeOnboardingRepository? onboarding,
 }) => [
+  clockProvider.overrideWith((ref) => Stream.value(DateTime.now())),
   tokenStorageProvider.overrideWithValue(InMemoryTokenStorage()),
   authRepositoryProvider.overrideWithValue(auth ?? FakeAuthRepository()),
   onboardingRepositoryProvider.overrideWithValue(

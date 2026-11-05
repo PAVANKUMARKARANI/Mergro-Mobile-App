@@ -28,7 +28,11 @@ The Home Dashboard is a placeholder in this phase.
 - [x] Screen 3: Onboarding, Admin flow (steps 1–6, Review, success)
 - [x] Screen 3: Onboarding, Sales agent flow
 - [x] Screen 3: Onboarding, Team lead flow
-- [x] Home placeholder with "Sign out" (ends the session and resets onboarding)
+- [x] Onboarding success screen opens the dashboard by itself (animation + 2 s, no button)
+- [x] App shell: role-based bottom tabs (side rail ≥ 600 px), "More" for the rest
+- [x] Screen 4 Home dashboard · 5 Leads + 11 Search & filters · 6 Live calls · 7 Hot lead inbox ·
+      8 Viewings · 9 Nurture · 10 Profile (UI with demo data, `TODO(backend)` marked)
+- [ ] Detail screens 12–20 (live call monitor, lead profile, call detail, transcript, …)
 - [x] Controller unit tests
 - [x] Backend: networking core (`ApiClient`, `ApiException`, secure `TokenStorage`)
 - [x] Backend: login, session restore at splash, logout, forgot password (`/api/auth/*`)
@@ -44,6 +48,58 @@ The Home Dashboard is a placeholder in this phase.
 **Decisions / deviations:** …
 **Verification:** flutter analyze ✅ · tests ✅ · checked light/dark/360px/1.3x
 -->
+
+### 2026-11-05 — App shell, Home dashboard and main screens 4–11 (UI, demo data)
+**Built:**
+- Onboarding success screen: no "Go to dashboard" button any more. When the check animation ends
+  (1.6 s, or at once with reduced motion) it waits `AppDurations.successHold` (2 s) and calls
+  `onContinue` once (refresh user → dashboard). Shows "Opening your dashboard…".
+- App shell (`features/shell`): `AppTab` (screens 4–10 + More). Bar tabs per role:
+  sales agent Home · Hot leads · Leads · Viewings · More; admin / team lead / operations /
+  compliance Home · Leads · Live calls · Hot leads · More. "More" lists the rest and pushes them
+  with a back button. Tabs build on first visit, then stay alive (IndexedStack). Hot leads tab
+  badge = handoffs waiting. Side `NavigationRail` at ≥ 600 px. System back returns to Home first.
+- Screen 4 Home: greeting + brokerage, profile avatar, navy speed-to-lead card (P95 vs 60 s),
+  KPI tiles (new leads, qualified, hot waiting, viewings today; each opens its tab), previews of
+  live calls, hot leads (with Accept) and today's viewings with "See all". Pull to refresh.
+- Screen 5 + 11 Leads: search (name / area / phone digits), Hot / Warm / Cold chips with counts,
+  filter sheet (source, status, territory, capture date) with a badge count, "Clear filters".
+- Screen 6 Live calls: on-a-call / queue / average AI reply tiles, calls in progress with stage,
+  ticking timer, latest transcript line and latency (amber above 800 ms), dial queue.
+- Screen 7 Hot lead inbox: waiting first, ticking SLA countdown (red in the last minute or
+  overdue), AI summary, score reasons, next action, Accept (simulated).
+- Screen 8 Viewings: Today / Tomorrow / Next 7 days, grouped by day with status chips.
+- Screen 9 Nurture: active / replied / due-today tiles, status filter, journey progress, next touch.
+- Screen 10 Profile: account card, role and brokerage, hot-lead alert switches, sign out with a
+  confirmation dialog (replaces the Home placeholder's button).
+- Shared: `SurfaceCard`, `InitialsAvatar`, `MetricTile`, `EmptyState`, `AsyncValueView`
+  (loading → data | empty | error + Retry), `TimeFormat`, `clockProvider` (1 s tick for timers),
+  navigation bar / rail theme.
+
+**Files:** added `lib/features/{shell,home,leads,calls,hot_leads,viewings,nurture,profile}/**`,
+`lib/app/app_routes_shell.dart` (part of `app_routes.dart`), `lib/core/utils/{time_format,clock}.dart`,
+`lib/shared/widgets/{surface_card,initials_avatar,metric_tile,empty_state,async_value_view}.dart`;
+tests under `test/features/{shell,leads,hot_leads}/`, `test/core/utils/time_format_test.dart`.
+Changed: `app_routes.dart`, `app_theme.dart`, `app_durations.dart`, `ui.dart`,
+`onboarding_success_screen.dart`, `test/helpers/fakes.dart` (clock pinned in tests). Deleted
+`home/screens/home_placeholder_screen.dart`.
+
+**Decisions / deviations:**
+- UI only, as asked: every list loads demo data after `AppDurations.simulatedNetwork` and is
+  marked `TODO(backend)` with the planned endpoint (CRM / Zoho later).
+- Bottom bars fit 5 items, so each role gets its 4 most-used destinations plus More.
+- Dashboard counts are derived from the leads list so Home and Leads always agree; only the
+  speed-to-lead figure is a separate demo value.
+- Lead and call rows are not tappable yet: the detail screens (12–20) come next.
+- Fixed during a rendered check: in dark mode a warning-tone `MetricTile` icon was invisible
+  (dark foreground on a dark card); it now uses the amber highlight there.
+
+**Verification:** `dart format .` ✅ · `flutter analyze` 0 issues ✅ · `flutter test` 120/120 ✅
+(38 new, incl. every new screen at 360 px / 1.3× in light and dark with no overflow, admin and
+agent shells, tablet rail, search/filters, accept, sign-out dialog, success auto-continue with and
+without reduced motion). Rendered Home (light + dark), Leads, Live calls, Hot leads, Viewings,
+Nurture and Profile to PNG with real fonts and reviewed them (temporary test, deleted).
+**Not verified:** on a real device or simulator.
 
 ### 2026-11-05 — Backend integration: auth and onboarding
 **Built (app):**
@@ -377,6 +433,16 @@ Changed: `lib/main.dart`, `pubspec.yaml`. Removed the scaffold `test/widget_test
 | `apiClientProvider` | `Provider<ApiClient>` | App-wide | dio client with bearer token and error mapping |
 | `authApiServiceProvider` / `authRepositoryProvider` | `Provider<AuthApiService>` / `Provider<AuthRepository>` | App-wide | `/api/auth/*`; repository overridden with `FakeAuthRepository` in tests |
 | `onboardingApiServiceProvider` / `onboardingRepositoryProvider` | `Provider<OnboardingApiService>` / `Provider<OnboardingRepository>` | App-wide | `/api/onboarding/*`, `/api/team/invites`; repository overridden with `FakeOnboardingRepository` in tests |
+| `appShellControllerProvider` | `NotifierProvider.autoDispose<AppShellController, AppTab>` | App shell | Selected bar tab; `select(tab)` → false when the tab lives under More |
+| `clockProvider` | `StreamProvider.autoDispose<DateTime>` | App-wide | Ticks every second for call timers and SLA countdowns; pinned in tests |
+| `dashboardSummaryProvider` | `FutureProvider.autoDispose<DashboardSummary>` | Home | Speed-to-lead (demo), new / qualified today and contact rate derived from leads |
+| `leadsControllerProvider` | `AsyncNotifierProvider.autoDispose<LeadsController, List<Lead>>` | Shell | Leads, newest first; `refresh()` |
+| `leadFiltersProvider` / `filteredLeadsProvider` | `NotifierProvider.autoDispose<…, LeadFilters>` / `Provider.autoDispose<AsyncValue<List<Lead>>>` | Leads + filter sheet | query, temperatures, sources, statuses, areas, dateRange; filtered list |
+| `liveCallsControllerProvider` | `AsyncNotifierProvider.autoDispose<…, LiveCallsSnapshot>` | Shell | active calls + dial queue; `refresh()` |
+| `hotLeadsControllerProvider` | `AsyncNotifierProvider.autoDispose<…, List<Handoff>>` | Shell | handoffs (waiting first); `accept(id)` → `bool`, `refresh()` |
+| `viewingsControllerProvider` / `viewingRangeProvider` | `AsyncNotifierProvider.autoDispose<…, List<Viewing>>` / `NotifierProvider.autoDispose<…, ViewingRange>` | Shell / Viewings | viewings (earliest first); selected range |
+| `nurtureControllerProvider` / `nurtureStatusFilterProvider` | `AsyncNotifierProvider.autoDispose<…, List<NurtureEnrollment>>` / `NotifierProvider.autoDispose<…, NurtureStatus?>` | Nurture | enrollments; status filter |
+| `profileAlertsControllerProvider` | `NotifierProvider.autoDispose<…, HotLeadAlertsDraft>` | Profile | push, SMS fallback, sound (local until the profile API) |
 | `stepValidProvider(step)` | `Provider.family<bool, OnboardingStepId>` | Onboarding | Whether Continue is enabled for that step |
 | `forgotPasswordControllerProvider` | `NotifierProvider.autoDispose<ForgotPasswordController, ForgotPasswordState>` | Forgot-password sheet | email, emailError, isSending, isSent; `sendResetLink()` → `bool` (real API) |
 
@@ -394,6 +460,14 @@ forgot password, onboarding save/skip/resume/complete, team invites. Still simul
 | `onboarding/services/voice_preview_service.dart` | `voicePreviewServiceProvider` (device TTS) | `GET /voices/{id}/sample` (real AI voice audio). Implement `VoicePreviewService` with an audio player and swap the provider |
 | `auth/widgets/request_access_sheet.dart` | Info sheet only | An access-request endpoint (none in the backend yet) |
 | Brokerage logo / agent photo (`hasLogo`, `hasPhoto`) | Not uploaded | Upload endpoint (the template has `/api/uploads`) |
+| `leads/controllers/leads_controller.dart` | `build()` demo leads | `GET /api/leads?sort=-createdAt` (paged) + socket.io lead events |
+| `calls/controllers/live_calls_controller.dart` | `build()` demo snapshot | `GET /api/calls/live` + socket.io `call:*` events |
+| `hot_leads/controllers/hot_leads_controller.dart` | `build()` demo handoffs | `GET /api/handoffs?status=waiting,accepted`; new ones via FCM + socket.io |
+| `hot_leads/controllers/hot_leads_controller.dart` | `accept()` simulated | `POST /api/handoffs/{id}/accept`; 409 when another agent took it |
+| `viewings/controllers/viewings_controller.dart` | `build()` demo viewings | `GET /api/viewings?from=&to=` (own for agents, all for admins / leads) |
+| `nurture/controllers/nurture_controller.dart` | `build()` demo enrollments | `GET /api/nurture/enrollments` (cadence engine W11–W12) |
+| `home/controllers/home_controller.dart` | speed-to-lead = 42 s | `GET /api/analytics/speed-to-lead?period=today` |
+| `profile/controllers/profile_alerts_controller.dart` | defaults, local edits | `GET` / `PUT /api/profile/alerts` (data already stored by onboarding) |
 
 ## Files created
 - Docs: `standards.md`, `skill.md`, `CLAUDE.md`
@@ -414,7 +488,10 @@ forgot password, onboarding save/skip/resume/complete, team invites. Still simul
   16 widget files incl. `onboarding_load_view`; `services/onboarding_api_service.dart`,
   `repositories/onboarding_repository.dart`; 2 screens) and the shared `app_dropdown_field`, `toggle_chip_group`,
   `setting_switch_tile`, `time_range_field`, `core/utils/{time_of_day_format,set_toggle}.dart`
-- Home: `lib/features/home/screens/home_placeholder_screen.dart`
+- Shell and main screens: `lib/features/{shell,home,leads,calls,hot_leads,viewings,nurture,profile}/**`,
+  `lib/app/app_routes_shell.dart`, `lib/core/utils/{time_format,clock}.dart`,
+  `lib/shared/widgets/{surface_card,initials_avatar,metric_tile,empty_state,async_value_view}.dart`
+  (the Home placeholder was removed)
 - Tests: `test/core/validation/form_validators_test.dart`, `test/helpers/test_app.dart`,
   `test/features/splash/splash_screen_test.dart`, `test/features/auth/{login_screen,login_controller}_test.dart`,
   `test/features/onboarding/{onboarding_flow_controller,step_controllers,onboarding_screen,
@@ -437,10 +514,13 @@ one agent may edit this working tree at a time.
 `admin@yopmail.com`, `agent@yopmail.com`, `lead@yopmail.com`, password `Emp1234$` (yopmail
 inboxes are public, so reset/invite emails to them can be read by anyone: demo use only).
 
-**State at handoff (2026-11-05):** the app and backend changes for this integration are **not
-committed** in either repo (the backend's secrets cleanup is committed and pushed).
+**State at handoff (2026-11-05):** backend integration committed on
+`feature/backend-auth-onboarding` (app) and `feature/mergro-auth-onboarding-api` (backend). The
+shell / dashboard work is on `feature/app-shell-dashboard` (app), **not committed yet**.
 
-**Next recommended task:** run the app on an Android emulator and an iOS simulator against the
+**Next recommended task:** detail screens 12–20 (live call monitor, lead profile, call detail,
+transcript, qualification, score, book viewing, timeline, consent) as UI with demo data, making
+lead / call rows tappable. Also still open: run the app on an Android emulator and an iOS simulator against the
 local API and walk through admin, agent and team-lead onboarding (including Retry with the server
 stopped and sign-out); check light/dark, 360 px and 1.3× on the new loading/error/invite states;
 then build a page (web or in-app) for `/changeRecoverPassword/:enEmail?token=` so reset and invite
