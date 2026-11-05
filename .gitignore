@@ -1,0 +1,59 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+*.tmp
+.DS_Store
+Thumbs.db
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+key.properties
+google-services.json
+GoogleService-Info.plist
+
+# IntelliJ / Android Studio
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code (keep shared settings only if needed)
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# Flutter / Dart / Pub
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+**/build/
+coverage/
+
+# Symbolication / obfuscation
+app.*.symbols
+app.*.map.json
+
+# Android Studio release artifacts
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Web
+/web/.dart_tool/

@@ -1,0 +1,10 @@
+# Native launch screen: matches the first frame of the Flutter splash.
+# Regenerate: flutter test tool/render_splash_logo_test.dart
+#             dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#0A1532"
+  image: assets/splash/splash_logo.png
+  android_12:
+    color: "#0A1532"
+    image: assets/splash/splash_logo_android12.png
+  web: false
