@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_durations.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/utils/clock.dart';
+import '../../../core/utils/no_automatic_retry.dart';
 import '../../lead_detail/lead_activity_demo_data.dart';
 import '../../lead_detail/lead_profile_demo_data.dart';
 import '../../lead_detail/models/lead_insights.dart';
@@ -119,7 +120,7 @@ final callDetailProvider = FutureProvider.autoDispose
         score: lead.score,
         transcript: CallScriptDemoData.transcriptFor(lead, call.outcome),
       );
-    }, retry: _noAutomaticRetry);
+    }, retry: noAutomaticRetry);
 
 /// The lead id inside a demo call id `call-<leadId>-<n>`, or null.
 String? leadIdOfCall(String callId) {
@@ -130,6 +131,3 @@ String? leadIdOfCall(String callId) {
 /// The demo lead with [leadId], or null.
 Lead? _demoLead(String? leadId, DateTime now) =>
     LeadsDemoData.leads(now).where((lead) => lead.id == leadId).firstOrNull;
-
-/// Failed loads show their error with Retry at once (no silent retries).
-Duration? _noAutomaticRetry(int retryCount, Object error) => null;

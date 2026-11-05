@@ -12,8 +12,9 @@ class DashboardSummary {
     this.speedToLeadTargetSeconds = 60,
   });
 
-  /// 95th-percentile time from lead capture to AI call, today.
-  final int speedToLeadSeconds;
+  /// 95th-percentile time from lead capture to AI call today; null until
+  /// AI calls are being made (Voice AI phase).
+  final int? speedToLeadSeconds;
 
   /// The speed-to-lead target.
   final int speedToLeadTargetSeconds;
@@ -27,6 +28,9 @@ class DashboardSummary {
   /// Share of today's leads the AI reached, 0–100.
   final int contactRatePercent;
 
-  /// True when speed-to-lead meets the target.
-  bool get isOnTarget => speedToLeadSeconds <= speedToLeadTargetSeconds;
+  /// True when speed-to-lead is known and meets the target.
+  bool get isOnTarget {
+    final seconds = speedToLeadSeconds;
+    return seconds != null && seconds <= speedToLeadTargetSeconds;
+  }
 }

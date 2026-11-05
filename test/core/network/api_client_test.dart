@@ -145,4 +145,32 @@ void main() {
     expect(ApiException(ApiErrorKind.network).isTransient, isTrue);
     expect(ApiException(ApiErrorKind.validation).isTransient, isFalse);
   });
+
+  test('a 404 keeps the server message, else the default', () async {
+    Future<String> messageFor(_StubAdapter adapter) async {
+      try {
+        await _client(adapter).get('/x');
+      } on ApiException catch (error) {
+        return error.message;
+      }
+      fail('expected an ApiException');
+    }
+
+    expect(
+      await messageFor(
+        _StubAdapter(
+          status: 404,
+          body: {
+            'errorCode': '404',
+            'errorMessage': 'This lead no longer exists.',
+          },
+        ),
+      ),
+      'This lead no longer exists.',
+    );
+    expect(
+      await messageFor(_StubAdapter(status: 404)),
+      ApiException.defaultMessages[ApiErrorKind.notFound],
+    );
+  });
 }

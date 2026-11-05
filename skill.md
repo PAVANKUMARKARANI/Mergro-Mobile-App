@@ -17,7 +17,8 @@ state for the first three screens. Since 2026-11-05, auth and onboarding talk to
 
 4. App shell with role-based tabs and the main screens: Home dashboard (4), Leads + search (5, 11),
    Live calls (6), Hot lead inbox (7), Viewings (8), Nurture (9), Profile (10) — **UI with demo
-   data**; their API calls are listed in the TODO(backend) table.
+   data**; their API calls are listed in the TODO(backend) table. Since 2026-11-05 the Leads list,
+   lead profile (13) and the dashboard's lead counts use the real leads API.
 
 Specs: screen flow `~/Projects/mobile designs/mergro-screen-flow/mergro-screen-flow.html` (screen
 numbers 1–50); build plan and status: the "Mergro Build Flow" artifact
@@ -48,6 +49,8 @@ numbers 1–50); build plan and status: the "Mergro Build Flow" artifact
 - [x] Backend: networking core (`ApiClient`, `ApiException`, secure `TokenStorage`)
 - [x] Backend: login, session restore at splash, logout, forgot password (`/api/auth/*`)
 - [x] Backend: onboarding save / skip / resume / complete, team invites (`/api/onboarding/*`, `/api/team/*`)
+- [x] Backend: leads API (`/api/leads/*`) — Leads list, lead profile + actions, dashboard counts
+- [ ] Backend: hot leads, viewings, calls, nurture, analytics (no backend endpoints yet; demo data)
 - [ ] Backend: SSO, Zoho, calendars, phone OTP, voice samples (no backend endpoints yet)
 - [ ] Final QA: light/dark, 360 px, text scale 1.3 on a device against the live API
 
@@ -60,7 +63,44 @@ numbers 1–50); build plan and status: the "Mergro Build Flow" artifact
 **Verification:** flutter analyze ✅ · tests ✅ · checked light/dark/360px/1.3x
 -->
 
-### 2026-11-05 — Backend: leads API (not yet connected in the app)
+### 2026-11-05 — App: Leads, lead profile and dashboard counts on the leads API
+**Built (app branch `feature/leads-api-integration`, from `feature/app-shell-dashboard`):**
+- `LeadsApiService` → `LeadsRepository` (`leadsRepositoryProvider`) over `/api/leads`, `/summary`,
+  `/:id`, `/:id/timeline`, consent, suppress, call-back and messages. `Lead.fromJson` and
+  `leadProfileFromJson` parse the server JSON (unknown enum values / events are skipped; missing
+  id, name, source, status or date → `ApiErrorKind.unexpected`).
+- `LeadsController` loads from the API (first 100, filtering stays on the device; TODO for
+  server-side paging/filters). Territory filter options now come from the loaded leads
+  (`leadAreasProvider`) instead of the demo list.
+- `dashboardSummaryProvider` reads `GET /api/leads/summary` (reloads with the leads list).
+  `DashboardSummary.speedToLeadSeconds` is nullable: the speed card shows "—", "No calls yet" and
+  "Measured once the AI starts calling new leads" until AI calls exist.
+- `LeadProfileController` loads the profile + timeline from the API; every action calls the
+  server, then re-fetches the profile (status, consents and timeline come from the server) and
+  updates the Leads row. A refused action keeps the profile and shows the server's message.
+  Call-back and Message say the request is **recorded** (no dialler / messaging yet). Profile
+  `calls` stay empty (no calls API). Booking a viewing still only updates the device copy.
+- `BookViewingController` takes the lead from the open profile, not the demo data.
+- **Demo-id bridge** (`leads/demo_lead_bridge.dart`, `TODO(backend)`): hot leads, viewings and calls
+  are still demo data with ids like `lead-02`; `AppRoutes.openLeadProfile` resolves them to the
+  loaded server lead with the same name (the seed uses the same 13 names).
+- 403 / 404 responses keep the server's `errorMessage` (e.g. "This lead no longer exists.").
+- `noAutomaticRetry` (`core/utils/no_automatic_retry.dart`) replaces two private copies and is now
+  also used by the leads list and the summary, so load errors show at once with Retry.
+**Tests:** `FakeLeadsRepository` (demo data, server-like actions, `failWith` / `failNextAction`) is in
+`fakeOverrides`; `InMemoryTokenStorage` / `InMemoryThemePreferenceStore` moved to
+`test/helpers/in_memory_stores.dart` (re-exported by `fakes.dart`). New tests: areas from leads,
+demo-id bridge, failed list load, refused profile action, 404 server message.
+**Verification:** `dart format .` ✅ · `flutter analyze` 0 issues ✅ · `flutter test` 175/175 ✅. Live
+check (temporary test, deleted) against the local server as `admin@yopmail.com`: 13 leads, summary
+(7 new / 3 qualified / 57 % / speed null), bridge `lead-02` → Ananya Iyer, profile (5/5 answers,
+4 reasons, 4 events, consents), call-back recorded and its event returned on re-fetch, unknown id
+→ `notFound`. The 404 server-message fix came after that run and is covered by a unit test only.
+Note: the live check added one "AI call-back requested" event to Ananya Iyer in the demo DB.
+**Not checked:** running the app on a device / emulator against the API, light/dark / 360 px /
+1.3× on the new speed-card states.
+
+### 2026-11-05 — Backend: leads API
 **Built in `~/Projects/Mergro/server`, branch `feature/leads-api`:** `Lead` and `LeadEvent` models
 (enum names match the app); `POST /api/leads/ingest` webhook (per-brokerage `x-mergro-key`, stored
 hashed; explicit call consent required; phone → E.164; repeat enquiries within 30 days merge;
@@ -73,9 +113,8 @@ adds the 13 demo leads to the demo admin's brokerage ("Do Systems" after onboard
 ingestion key once.
 **Verification:** 37/37 scripted API checks against the `mergro` DB (webhook auth, validation,
 dedupe, consent, filters, agent scope, brokerage isolation, actions, redaction) and 14/14
-eligibility / phone rule checks; demo data reset and re-seeded afterwards. **Not done:** the app
-still uses demo data for leads — next step is connecting Leads, the lead profile and the dashboard
-counts to these endpoints.
+eligibility / phone rule checks; demo data reset and re-seeded afterwards. The app was connected to
+these endpoints in the entry above.
 
 ### 2026-11-05 — Part B: live call monitor (12), call detail (14), transcript (15), book viewing (18)
 **Built (UI with demo data):**
@@ -588,15 +627,17 @@ Changed: `lib/main.dart`, `pubspec.yaml`. Removed the scaffold `test/widget_test
 | `onboardingApiServiceProvider` / `onboardingRepositoryProvider` | `Provider<OnboardingApiService>` / `Provider<OnboardingRepository>` | App-wide | `/api/onboarding/*`, `/api/team/invites`; repository overridden with `FakeOnboardingRepository` in tests |
 | `appShellControllerProvider` | `NotifierProvider.autoDispose<AppShellController, AppTab>` | App shell | Selected bar tab; `select(tab)` → false when the tab lives under More |
 | `clockProvider` | `StreamProvider.autoDispose<DateTime>` | App-wide | Ticks every second for call timers and SLA countdowns; pinned in tests |
-| `dashboardSummaryProvider` | `FutureProvider.autoDispose<DashboardSummary>` | Home | Speed-to-lead (demo), new / qualified today and contact rate derived from leads |
-| `leadsControllerProvider` | `AsyncNotifierProvider.autoDispose<LeadsController, List<Lead>>` | Shell | Leads, newest first; `refresh()` |
+| `dashboardSummaryProvider` | `FutureProvider.autoDispose<DashboardSummary>` (no auto-retry) | Home | `GET /api/leads/summary`: new / qualified today, contact rate; speed-to-lead null until AI calls exist |
+| `leadsControllerProvider` | `AsyncNotifierProvider.autoDispose<LeadsController, List<Lead>>` (no auto-retry) | Shell | `GET /api/leads` (first 100), newest first; `refresh()`, `replaceLead()` |
+| `leadAreasProvider` | `Provider.autoDispose<List<String>>` | Filter sheet | Areas of the loaded leads, A–Z |
+| `leadsApiServiceProvider` / `leadsRepositoryProvider` | `Provider<LeadsApiService>` / `Provider<LeadsRepository>` | App-wide | `/api/leads/*`; repository overridden with `FakeLeadsRepository` in tests |
 | `leadFiltersProvider` / `filteredLeadsProvider` | `NotifierProvider.autoDispose<…, LeadFilters>` / `Provider.autoDispose<AsyncValue<List<Lead>>>` | Leads + filter sheet | query, temperatures, sources, statuses, areas, dateRange; filtered list |
 | `liveCallsControllerProvider` | `AsyncNotifierProvider.autoDispose<…, LiveCallsSnapshot>` | Shell | active calls + dial queue; `refresh()` |
 | `hotLeadsControllerProvider` | `AsyncNotifierProvider.autoDispose<…, List<Handoff>>` | Shell | handoffs (waiting first); `accept(id)` → `bool`, `refresh()` |
 | `viewingsControllerProvider` / `viewingRangeProvider` | `AsyncNotifierProvider.autoDispose<…, List<Viewing>>` / `NotifierProvider.autoDispose<…, ViewingRange>` | Shell / Viewings | viewings (earliest first); selected range |
 | `nurtureControllerProvider` / `nurtureStatusFilterProvider` | `AsyncNotifierProvider.autoDispose<…, List<NurtureEnrollment>>` / `NotifierProvider.autoDispose<…, NurtureStatus?>` | Nurture | enrollments; status filter |
 | `themeModeControllerProvider` / `themePreferenceStoreProvider` | `NotifierProvider<ThemeModeController, ThemeMode>` / `Provider<ThemePreferenceStore>` | App-wide | Light / Dark / System; `select(mode)` saves it |
-| `leadProfileControllerProvider(leadId)` | `AsyncNotifierProvider.autoDispose.family<LeadProfileController, LeadProfile, String>` (no auto-retry) | Lead profile + message sheet | lead, email, qualification, scoreReasons, timeline, consents, calls, busyAction; `requestCallBack()`, `sendMessage()`, `withdrawConsent()`, `markDoNotContact()` → `LeadActionOutcome`; `refresh()` |
+| `leadProfileControllerProvider(leadId)` | `AsyncNotifierProvider.autoDispose.family<LeadProfileController, LeadProfile, String>` (no auto-retry) | Lead profile + message sheet | From `GET /api/leads/{id}` + `/timeline`: lead, email, qualification, scoreReasons, timeline, consents, calls (empty: no calls API), busyAction; `requestCallBack()`, `sendMessage()`, `withdrawConsent()`, `markDoNotContact()` → `LeadActionOutcome` (server call, then re-fetch); `recordViewingBooked()` (local); `refresh()` |
 | `liveCallMonitorProvider(callId)` | `Provider.autoDispose.family<AsyncValue<LiveCallMonitor>, String>` | Live call monitor | call, lines so far, qualification, stage, isEnded (re-evaluates every clock tick) |
 | `callDetailProvider(callId)` | `FutureProvider.autoDispose.family<CallDetail, String>` (no auto-retry) | Call detail + transcript | outcome, summary, nextStep, qualification, score, transcript |
 | `bookViewingControllerProvider(leadId)` | `NotifierProvider.autoDispose.family<BookViewingController, BookViewingState, String>` | Book viewing | properties, days, day, slots, propertyId, heldSlot, holdUntil, isHolding, isBooking, errorMessage; `selectProperty()`, `selectDay()`, `holdSlot()` → `bool`, `confirm()` → `LeadActionOutcome` |
@@ -606,7 +647,9 @@ Changed: `lib/main.dart`, `pubspec.yaml`. Removed the scaffold `test/widget_test
 
 ## TODO(backend)
 Integrated on 2026-11-05 (no longer placeholders): session restore, login, logout, `GET /auth/me`,
-forgot password, onboarding save/skip/resume/complete, team invites. Still simulated:
+forgot password, onboarding save/skip/resume/complete, team invites; leads list, lead profile +
+timeline, consent withdrawal, do-not-contact, dashboard new / qualified / contact-rate counts.
+Still simulated or partial:
 
 | File | Placeholder | Real API call needed |
 |------|-------------|----------------------|
@@ -618,17 +661,18 @@ forgot password, onboarding save/skip/resume/complete, team invites. Still simul
 | `onboarding/services/voice_preview_service.dart` | `voicePreviewServiceProvider` (device TTS) | `GET /voices/{id}/sample` (real AI voice audio). Implement `VoicePreviewService` with an audio player and swap the provider |
 | `auth/widgets/request_access_sheet.dart` | Info sheet only | An access-request endpoint (none in the backend yet) |
 | Brokerage logo / agent photo (`hasLogo`, `hasPhoto`) | Not uploaded | Upload endpoint (the template has `/api/uploads`) |
-| `leads/controllers/leads_controller.dart` | `build()` demo leads | `GET /api/leads?sort=-createdAt` (paged) + socket.io lead events |
+| `leads/repositories/leads_repository.dart` | `fetchLeads()` loads the first 100, filters on device | Page beyond 100 and send `q`, `temperature`, `source`, `status`, `area`, `days` (the endpoint supports them) |
+| `leads/controllers/leads_controller.dart` | No live updates | socket.io lead events |
+| `leads/demo_lead_bridge.dart` | Demo ids (`lead-02`) from hot leads / viewings / calls resolved to server leads by name | Remove once those APIs return real lead ids |
 | `calls/controllers/live_calls_controller.dart` | `build()` demo snapshot | `GET /api/calls/live` + socket.io `call:*` events |
 | `hot_leads/controllers/hot_leads_controller.dart` | `build()` demo handoffs | `GET /api/handoffs?status=waiting,accepted`; new ones via FCM + socket.io |
 | `hot_leads/controllers/hot_leads_controller.dart` | `accept()` simulated | `POST /api/handoffs/{id}/accept`; 409 when another agent took it |
 | `viewings/controllers/viewings_controller.dart` | `build()` demo viewings | `GET /api/viewings?from=&to=` (own for agents, all for admins / leads) |
 | `nurture/controllers/nurture_controller.dart` | `build()` demo enrollments | `GET /api/nurture/enrollments` (cadence engine W11–W12) |
-| `lead_detail/controllers/lead_profile_controller.dart` | `build()` demo profile | `GET /api/leads/{id}` + `GET /api/leads/{id}/timeline` |
-| `lead_detail/controllers/lead_profile_controller.dart` | `requestCallBack()` | `POST /api/leads/{id}/call-back` (queues an AI call) |
-| `lead_detail/controllers/lead_profile_controller.dart` | `sendMessage()` | `POST /api/leads/{id}/messages {channel, text}` |
-| `lead_detail/controllers/lead_profile_controller.dart` | `withdrawConsent()` | `PUT /api/leads/{id}/consent {channel, granted: false}` |
-| `lead_detail/controllers/lead_profile_controller.dart` | `markDoNotContact()` | `POST /api/leads/{id}/suppress` (suppression list, stops journeys) |
+| `lead_detail/controllers/lead_profile_controller.dart` | `requestCallBack()` — the server only records it | Server: enqueue the AI call (Voice AI dialler); app: change the message to "Mergro will call … within 60 seconds" |
+| `lead_detail/controllers/lead_profile_controller.dart` | `sendMessage()` — the server only records it | Server: send through the SMS / WhatsApp / email connectors |
+| `lead_detail/controllers/lead_profile_controller.dart` | `recordViewingBooked()` updates the device copy only | Re-fetch the profile once `POST /api/viewings` exists |
+| `lead_detail/models/lead_profile_json.dart` | `calls: []` | `GET /api/calls?leadId=` |
 | `calls/controllers/call_providers.dart` | `liveCallMonitorProvider` replays a demo script | socket.io `call:{id}:transcript` + `call:{id}:fields` |
 | `calls/controllers/call_providers.dart` | `callDetailProvider` demo | `GET /api/calls/{id}` + `GET /api/calls/{id}/transcript` |
 | `calls/screens/live_call_monitor_screen.dart` | take over / warm transfer note | `POST /api/calls/{id}/transfer` (telephony integration) |
@@ -636,7 +680,7 @@ forgot password, onboarding save/skip/resume/complete, team invites. Still simul
 | `viewings/controllers/book_viewing_controller.dart` | demo listings + slots | `GET /api/listings?leadId=`, `GET /api/viewings/slots?propertyId=&date=` |
 | `viewings/controllers/book_viewing_controller.dart` | `holdSlot()` / `selectDay()` | `POST /api/viewings/hold` (409 = taken), `DELETE /api/viewings/hold/{id}` |
 | `viewings/controllers/book_viewing_controller.dart` | `confirm()` | `POST /api/viewings {holdId, leadId, propertyId}` (SMS + CRM) |
-| `home/controllers/home_controller.dart` | speed-to-lead = 42 s | `GET /api/analytics/speed-to-lead?period=today` |
+| Server `leadSummary` | `speedToLeadSeconds: null` (card shows "No calls yet") | P95 capture → AI call time once AI calls are logged (analytics W11–W12) |
 | `profile/controllers/profile_alerts_controller.dart` | defaults, local edits | `GET` / `PUT /api/profile/alerts` (data already stored by onboarding) |
 
 ## Files created
@@ -658,7 +702,9 @@ forgot password, onboarding save/skip/resume/complete, team invites. Still simul
   16 widget files incl. `onboarding_load_view`; `services/onboarding_api_service.dart`,
   `repositories/onboarding_repository.dart`; 2 screens) and the shared `app_dropdown_field`, `toggle_chip_group`,
   `setting_switch_tile`, `time_range_field`, `core/utils/{time_of_day_format,set_toggle}.dart`
-- Lead profile: `lib/features/lead_detail/**`
+- Lead profile: `lib/features/lead_detail/**` (incl. `models/lead_profile_json.dart`)
+- Leads API: `lib/features/leads/{services/leads_api_service,repositories/leads_repository,demo_lead_bridge}.dart`,
+  `lib/core/utils/no_automatic_retry.dart`, `test/helpers/{fake_leads_repository,in_memory_stores}.dart`
 - Calls and booking: `lib/features/calls/{call_script_demo_data.dart,models/call_transcript.dart,controllers/call_providers.dart,screens/*,widgets/transcript_view.dart}`, `lib/features/viewings/{booking_demo_data.dart,models/booking.dart,controllers/book_viewing_controller.dart,screens/book_viewing_screen.dart,widgets/slot_picker.dart}`, `lib/core/utils/pii_mask.dart`
 - Shell and main screens: `lib/features/{shell,home,leads,calls,hot_leads,viewings,nurture,profile}/**`,
   `lib/app/app_routes_shell.dart`, `lib/core/utils/{time_format,clock}.dart`,
@@ -692,9 +738,11 @@ shell / dashboard work is on `feature/app-shell-dashboard` (app): commit `99eeb7
 and screens 4–11; the later passes (dashboard density, compact hot leads, tab bar, theme choice,
 skeleton loading, doc updates, Parts A and B — screens 12–20) are **not committed yet**. Nothing is pushed.
 
-**Next recommended task:** connect the app's Leads list, lead profile (consent, suppress,
-call-back, message) and dashboard counts to the new leads API (backend branch
-`feature/leads-api`), after the user confirms. Otherwise: propose the next phase and wait. Candidates: the
+**Update (2026-11-05, later):** all earlier branches are committed and pushed. The leads API
+(backend `feature/leads-api`, pushed) is connected in the app on `feature/leads-api-integration`
+(committed, not pushed).
+
+**Next recommended task:** propose the next phase and wait for confirmation. Candidates: the
 handoff module (21–26: hot-lead alert, handoff detail, accept & call back, viewing calendar,
 booking confirmed, viewing outcome), or start connecting screens to the backend once the lead /
 call API exists. Parts A and B (screens 12–20) are done but not committed. Also still open: run the app on an Android emulator and an iOS simulator against the

@@ -5,7 +5,6 @@ import '../../../core/utils/time_format.dart';
 import '../../auth/controllers/current_user_controller.dart';
 import '../../lead_detail/controllers/lead_profile_controller.dart';
 import '../../lead_detail/models/lead_profile.dart';
-import '../../leads/leads_demo_data.dart';
 import '../../leads/models/lead.dart';
 import '../booking_demo_data.dart';
 import '../models/booking.dart';
@@ -27,11 +26,9 @@ class BookViewingController extends Notifier<BookViewingState> {
   /// The lead the viewing is for.
   final String leadId;
 
-  /// The demo lead, if it exists.
+  /// The lead from its open profile (booking starts there), if loaded.
   Lead? get _lead =>
-      LeadsDemoData.leads(DateTime.now())
-          .where((lead) => lead.id == leadId)
-          .firstOrNull;
+      ref.read(leadProfileControllerProvider(leadId)).value?.lead;
 
   /// Starts on today with the first listing selected.
   @override

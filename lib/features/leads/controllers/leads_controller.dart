@@ -1,29 +1,27 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_durations.dart';
 import '../../../core/utils/set_toggle.dart';
-import '../leads_demo_data.dart';
+import '../../../core/utils/no_automatic_retry.dart';
 import '../models/lead.dart';
 import '../models/lead_filters.dart';
+import '../repositories/leads_repository.dart';
 
 /// Every lead of the brokerage, newest first. Lives while the app shell is
 /// open; also read by the Home dashboard.
 final leadsControllerProvider =
     AsyncNotifierProvider.autoDispose<LeadsController, List<Lead>>(
       LeadsController.new,
+      retry: noAutomaticRetry,
     );
 
-/// Loads leads (demo data until the leads API exists).
+/// Loads the brokerage's leads from the API.
 class LeadsController extends AsyncNotifier<List<Lead>> {
-  /// Loads the leads.
+  /// Loads the leads, newest first.
   @override
   Future<List<Lead>> build() async {
-    // TODO(backend): GET /api/leads?sort=-createdAt (paged); the list should
-    // also update live from socket.io lead events.
-    await Future<void>.delayed(AppDurations.simulatedNetwork);
-    final leads = LeadsDemoData.leads(DateTime.now())
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return leads;
+    // TODO(backend): update live from socket.io lead events.
+    final leads = await ref.read(leadsRepositoryProvider).fetchLeads();
+    return leads..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
   /// Reloads (pull to refresh, Retry).
@@ -98,4 +96,13 @@ final filteredLeadsProvider = Provider.autoDispose<AsyncValue<List<Lead>>>((
       .whenData(
         (leads) => leads.where((lead) => filters.matches(lead, now)).toList(),
       );
+});
+
+/// Areas of the loaded leads, A–Z, for the Territory filter.
+final leadAreasProvider = Provider.autoDispose<List<String>>((ref) {
+  final leads = ref.watch(leadsControllerProvider).value ?? const <Lead>[];
+  return {
+    for (final lead in leads)
+      if (lead.area.isNotEmpty) lead.area,
+  }.toList()..sort();
 });

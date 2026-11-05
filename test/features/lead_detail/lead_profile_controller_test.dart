@@ -79,6 +79,7 @@ void main() {
     final sent = await leadCtl.sendMessage(ConsentChannel.sms, 'Hi Fatima');
     expect(sent, isA<LeadActionSucceeded>());
     expect(profile(container, 'lead-04').timeline.first.detail, 'Hi Fatima');
+    expect(sent.message, contains('recorded'));
   });
 
   test('withdrawing consent blocks that channel only', () async {
@@ -111,4 +112,27 @@ void main() {
       isA<LeadActionFailed>(),
     );
   });
+
+  test(
+    'a refused action keeps the profile and shows the server message',
+    () async {
+      final leads = FakeLeadsRepository();
+      final container = fakeContainer(leads: leads);
+      container.listen(leadProfileControllerProvider('lead-02'), (_, _) {});
+      await container.read(leadProfileControllerProvider('lead-02').future);
+      final before = profile(container, 'lead-02').timeline.length;
+      leads.failNextAction = ApiException(
+        ApiErrorKind.validation,
+        message: "This lead hasn't agreed to calls.",
+      );
+
+      final outcome = await controller(container, 'lead-02').requestCallBack();
+
+      expect(outcome, isA<LeadActionFailed>());
+      expect(outcome.message, "This lead hasn't agreed to calls.");
+      expect(profile(container, 'lead-02').timeline.length, before);
+      expect(profile(container, 'lead-02').busyAction, isNull);
+      expect(leads.actions, isEmpty);
+    },
+  );
 }

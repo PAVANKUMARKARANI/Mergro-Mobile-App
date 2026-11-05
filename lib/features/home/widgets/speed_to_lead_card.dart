@@ -15,12 +15,18 @@ class SpeedToLeadCard extends StatelessWidget {
     final palette = context.palette;
     final text = context.textStyles;
     final target = summary.speedToLeadTargetSeconds;
-    final ratio = (summary.speedToLeadSeconds / target).clamp(0.0, 1.0);
-    final status = summary.isOnTarget ? 'On target' : 'Over target';
+    final seconds = summary.speedToLeadSeconds;
+    final ratio = seconds == null ? 0.0 : (seconds / target).clamp(0.0, 1.0);
+    final status = seconds == null
+        ? 'No calls yet'
+        : summary.isOnTarget
+        ? 'On target'
+        : 'Over target';
     final muted = text.bodySmall?.copyWith(color: AppColors.headerSubtitle);
     return Semantics(
       label:
-          'Speed to lead today: ${summary.speedToLeadSeconds} seconds, '
+          'Speed to lead today: '
+          '${seconds == null ? 'not measured yet' : '$seconds seconds'}, '
           'target $target seconds, $status, '
           '${summary.contactRatePercent} percent reached',
       excludeSemantics: true,
@@ -51,7 +57,9 @@ class SpeedToLeadCard extends StatelessWidget {
                 ),
                 StatusChip(
                   label: status,
-                  tone: summary.isOnTarget
+                  tone: seconds == null
+                      ? StatusTone.neutral
+                      : summary.isOnTarget
                       ? StatusTone.success
                       : StatusTone.warning,
                 ),
@@ -63,7 +71,7 @@ class SpeedToLeadCard extends StatelessWidget {
               spacing: AppSpacing.xs,
               children: [
                 Text(
-                  TimeFormat.seconds(summary.speedToLeadSeconds),
+                  seconds == null ? '—' : TimeFormat.seconds(seconds),
                   style: text.headlineSmall?.copyWith(color: AppColors.white),
                 ),
                 Padding(
@@ -86,7 +94,9 @@ class SpeedToLeadCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '${summary.contactRatePercent}% of today\'s leads reached by the AI',
+              seconds == null
+                  ? 'Measured once the AI starts calling new leads'
+                  : '${summary.contactRatePercent}% of today\'s leads reached by the AI',
               style: muted,
             ),
           ],

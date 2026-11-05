@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/ui.dart';
 import '../controllers/leads_controller.dart';
-import '../leads_demo_data.dart';
 import '../models/lead.dart';
 import '../models/lead_filters.dart';
 
@@ -58,7 +57,7 @@ class LeadFilterSheet extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.lg),
                 ToggleChipGroup<String>(
                   label: 'Territory',
-                  options: LeadsDemoData.areas,
+                  options: ref.watch(leadAreasProvider),
                   selected: filters.areas,
                   labelOf: (area) => area,
                   onToggled: controller.toggleArea,

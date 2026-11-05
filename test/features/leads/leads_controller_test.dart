@@ -1,12 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergro_ai_voice_assistant/core/network/api_exception.dart';
 import 'package:mergro_ai_voice_assistant/features/leads/controllers/leads_controller.dart';
+import 'package:mergro_ai_voice_assistant/features/leads/demo_lead_bridge.dart';
+import 'package:mergro_ai_voice_assistant/features/leads/leads_demo_data.dart';
 import 'package:mergro_ai_voice_assistant/features/leads/models/lead.dart';
 import 'package:mergro_ai_voice_assistant/features/leads/models/lead_filters.dart';
 
+import '../../helpers/fakes.dart';
+
 /// A container with the leads loaded and the filtered list kept alive.
 Future<ProviderContainer> _loaded() async {
-  final container = ProviderContainer.test();
+  final container = fakeContainer();
   container.listen(filteredLeadsProvider, (_, _) {});
   await container.read(leadsControllerProvider.future);
   return container;
@@ -89,6 +94,48 @@ void main() {
           .value!
           .every((l) => now.difference(l.createdAt) <= const Duration(days: 1)),
       isTrue,
+    );
+  });
+
+  test('territory options come from the loaded leads, A–Z', () async {
+    final container = await _loaded();
+    container.listen(leadAreasProvider, (_, _) {});
+    final areas = container.read(leadAreasProvider);
+    expect(areas, containsAll(['Hebbal', 'Koramangala']));
+    expect(areas, [...areas]..sort());
+    expect(areas.toSet().length, areas.length);
+  });
+
+  test('a demo id resolves to the loaded lead with the same name', () {
+    final server = LeadsDemoData.leads(DateTime.now()).first;
+    final loaded = [
+      Lead(
+        id: '64f0c0ffee',
+        name: server.name,
+        phone: server.phone,
+        source: server.source,
+        status: server.status,
+        area: server.area,
+        budget: server.budget,
+        propertyType: server.propertyType,
+        createdAt: server.createdAt,
+        lastActivity: server.lastActivity,
+      ),
+    ];
+    expect(resolveLeadId(server.id, loaded), '64f0c0ffee');
+    expect(resolveLeadId('64f0c0ffee', loaded), '64f0c0ffee');
+    expect(resolveLeadId(server.id, null), server.id);
+    expect(resolveLeadId('lead-99', loaded), 'lead-99');
+  });
+
+  test('a failed load surfaces the API error', () async {
+    final container = fakeContainer(
+      leads: FakeLeadsRepository(failWith: ApiException(ApiErrorKind.network)),
+    );
+    container.listen(leadsControllerProvider, (_, _) {});
+    await expectLater(
+      container.read(leadsControllerProvider.future),
+      throwsA(isA<ApiException>()),
     );
   });
 }

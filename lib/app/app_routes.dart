@@ -14,6 +14,8 @@ import '../features/home/screens/home_screen.dart';
 import '../features/hot_leads/screens/hot_leads_screen.dart';
 import '../features/lead_detail/screens/lead_profile_screen.dart';
 import '../features/lead_detail/widgets/send_message_sheet.dart';
+import '../features/leads/controllers/leads_controller.dart';
+import '../features/leads/demo_lead_bridge.dart';
 import '../features/leads/screens/leads_screen.dart';
 import '../features/leads/widgets/lead_filter_sheet.dart';
 import '../features/nurture/screens/nurture_screen.dart';

@@ -24,8 +24,12 @@ abstract final class ApiResponseMapper {
     if (status == 401 || json?['sessionExpired'] == true) {
       throw _fail(ApiErrorKind.unauthorized, path, status);
     }
-    if (status == 403) throw _fail(ApiErrorKind.forbidden, path, status);
-    if (status == 404) throw _fail(ApiErrorKind.notFound, path, status);
+    if (status == 403) {
+      throw _fail(ApiErrorKind.forbidden, path, status, _messageOf(json));
+    }
+    if (status == 404) {
+      throw _fail(ApiErrorKind.notFound, path, status, _messageOf(json));
+    }
     if (status >= 500) throw _fail(ApiErrorKind.server, path, status);
     if (status == 400 || status == 422) {
       throw _fail(ApiErrorKind.validation, path, status, _messageOf(json));

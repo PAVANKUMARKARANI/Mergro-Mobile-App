@@ -50,8 +50,14 @@ abstract final class _ShellRoutes {
     );
   }
 
-  /// Pushes the lead profile (screen 13) for [leadId].
-  static void openLeadProfile(BuildContext context, String leadId) {
+  /// Pushes the lead profile (screen 13). [demoOrServerId] may still be a
+  /// demo id from hot leads, viewings or calls (see [resolveLeadId]).
+  static void openLeadProfile(BuildContext context, String demoOrServerId) {
+    final leads = ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(leadsControllerProvider).value;
+    final leadId = resolveLeadId(demoOrServerId, leads);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (profileContext) => LeadProfileScreen(

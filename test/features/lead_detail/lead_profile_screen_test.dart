@@ -127,7 +127,7 @@ void main() {
     await tester.pump(loaded);
     await tester.pumpAndSettle();
 
-    expect(find.text('WhatsApp sent to Ananya.'), findsOneWidget);
+    expect(find.textContaining('WhatsApp to Ananya recorded'), findsOneWidget);
     expect(find.text('Message Ananya'), findsNothing, reason: 'sheet closed');
   });
 }

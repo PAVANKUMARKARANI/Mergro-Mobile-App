@@ -1,13 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_durations.dart';
 import '../../../core/network/api_exception.dart';
-import '../../auth/controllers/current_user_controller.dart';
+import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/no_automatic_retry.dart';
 import '../../leads/controllers/leads_controller.dart';
-import '../../leads/leads_demo_data.dart';
 import '../../leads/models/lead.dart';
+import '../../leads/repositories/leads_repository.dart';
 import '../../viewings/models/viewing.dart';
-import '../lead_profile_demo_data.dart';
 import '../models/lead_insights.dart';
 import '../models/lead_profile.dart';
 
@@ -16,15 +15,10 @@ import '../models/lead_profile.dart';
 final leadProfileControllerProvider = AsyncNotifierProvider.autoDispose
     .family<LeadProfileController, LeadProfile, String>(
       LeadProfileController.new,
-      retry: _noAutomaticRetry,
+      retry: noAutomaticRetry,
     );
 
-/// Disables Riverpod's automatic retry (it would hide a not-found lead
-/// behind ~30 s of silent retries).
-Duration? _noAutomaticRetry(int retryCount, Object error) => null;
-
-/// Loads a lead's profile and runs its actions (simulated until the leads
-/// API exists).
+/// Loads a lead's profile from the API and runs its actions.
 class LeadProfileController extends AsyncNotifier<LeadProfile> {
   /// Creates the controller for [leadId].
   LeadProfileController(this.leadId);
@@ -35,24 +29,11 @@ class LeadProfileController extends AsyncNotifier<LeadProfile> {
   /// Message when an action is already running.
   static const String busyMessage = 'Still working on the last action…';
 
-  /// Loads the profile.
+  LeadsRepository get _repository => ref.read(leadsRepositoryProvider);
+
+  /// Loads the profile and its timeline.
   @override
-  Future<LeadProfile> build() async {
-    // TODO(backend): GET /api/leads/{id} (profile, qualification, score
-    // reasons, consent) and GET /api/leads/{id}/timeline.
-    await Future<void>.delayed(AppDurations.simulatedNetwork);
-    final now = DateTime.now();
-    final lead = LeadsDemoData.leads(now)
-        .where((item) => item.id == leadId)
-        .firstOrNull;
-    if (lead == null) {
-      throw ApiException(
-        ApiErrorKind.notFound,
-        message: 'This lead no longer exists.',
-      );
-    }
-    return LeadProfileDemoData.profileFor(lead, now);
-  }
+  Future<LeadProfile> build() => _repository.fetchProfile(leadId);
 
   /// Reloads (pull to refresh, Retry).
   Future<void> refresh() async {
@@ -68,20 +49,13 @@ class LeadProfileController extends AsyncNotifier<LeadProfile> {
         const LeadActionFailed("This lead hasn't agreed to calls."),
       );
     }
-    // TODO(backend): POST /api/leads/{id}/call-back (queues an AI call).
+    // TODO(backend): the server only records the request until the Voice AI
+    // dialler exists; then say "Mergro will call … within 60 seconds".
     return _run(
       LeadAction.callBack,
-      (current) => current.copyWith(
-        timeline: [
-          _event(
-            TimelineKind.call,
-            'AI call-back requested',
-            'By ${_agentName()}',
-          ),
-          ...current.timeline,
-        ],
-      ),
-      'Mergro will call ${_firstName(profile)} within 60 seconds.',
+      (repository) => repository.requestCallBack(leadId),
+      'Call-back requested for ${_firstName(profile)}. AI calling starts '
+      'once telephony is connected.',
     );
   }
 
@@ -96,70 +70,35 @@ class LeadProfileController extends AsyncNotifier<LeadProfile> {
         LeadActionFailed("This lead hasn't agreed to ${channel.label}."),
       );
     }
-    // TODO(backend): POST /api/leads/{id}/messages {channel, text}.
+    // TODO(backend): the server only records the message until the SMS /
+    // WhatsApp / email connectors exist.
     return _run(
       LeadAction.message,
-      (current) => current.copyWith(
-        timeline: [
-          _event(TimelineKind.message, '${channel.label} sent', text.trim()),
-          ...current.timeline,
-        ],
-      ),
-      '${channel.label} sent to ${_firstName(profile)}.',
+      (repository) => repository.sendMessage(leadId, channel, text.trim()),
+      '${channel.label} to ${_firstName(profile)} recorded. Sending starts '
+      'once messaging is connected.',
     );
   }
 
   /// Records that the lead withdrew consent on [channel].
-  Future<LeadActionOutcome> withdrawConsent(ConsentChannel channel) {
-    // TODO(backend): PUT /api/leads/{id}/consent {channel, granted: false}.
-    return _run(
-      LeadAction.consent,
-      (current) => current.copyWith(
-        consents: [
-          for (final consent in current.consents)
-            consent.channel == channel ? _withdrawn(consent) : consent,
-        ],
-        timeline: [
-          _event(
-            TimelineKind.consent,
-            '${channel.label} consent withdrawn',
-            'Recorded by ${_agentName()}',
-          ),
-          ...current.timeline,
-        ],
-      ),
-      '${channel.label} consent withdrawn.',
-    );
-  }
+  Future<LeadActionOutcome> withdrawConsent(ConsentChannel channel) => _run(
+    LeadAction.consent,
+    (repository) => repository.withdrawConsent(leadId, channel),
+    '${channel.label} consent withdrawn.',
+  );
 
   /// Stops all contact with the lead for good.
-  Future<LeadActionOutcome> markDoNotContact() {
-    // TODO(backend): POST /api/leads/{id}/suppress (adds to the suppression
-    // list and stops every journey).
-    return _run(LeadAction.doNotContact, (current) {
-      final lead = current.lead.copyWith(
-        status: LeadStatus.suppressed,
-        lastActivity: 'Marked do-not-contact',
-      );
-      _updateLeadsList(lead);
-      return current.copyWith(
-        lead: lead,
-        consents: [for (final c in current.consents) _withdrawn(c)],
-        timeline: [
-          _event(
-            TimelineKind.consent,
-            'Marked do-not-contact',
-            'All channels stopped by ${_agentName()}',
-          ),
-          ...current.timeline,
-        ],
-      );
-    }, "${_firstName(state.value)} won't be contacted again.");
-  }
+  Future<LeadActionOutcome> markDoNotContact() => _run(
+    LeadAction.doNotContact,
+    (repository) => repository.suppress(leadId),
+    "${_firstName(state.value)} won't be contacted again.",
+  );
 
   /// Records a viewing booked from the Book viewing screen (the booking
   /// request already ran there).
   void recordViewingBooked(Viewing viewing) {
+    // TODO(backend): re-fetch the profile once POST /api/viewings exists;
+    // until then the booking only changes this device's copy.
     final profile = state.value;
     if (profile == null) return;
     final lead = profile.lead.copyWith(
@@ -171,10 +110,11 @@ class LeadProfileController extends AsyncNotifier<LeadProfile> {
       profile.copyWith(
         lead: lead,
         timeline: [
-          _event(
-            TimelineKind.viewing,
-            'Viewing booked',
-            '${viewing.property} · awaiting the lead\'s confirmation',
+          TimelineEvent(
+            at: DateTime.now(),
+            kind: TimelineKind.viewing,
+            title: 'Viewing booked',
+            detail: '${viewing.property} · awaiting the lead\'s confirmation',
           ),
           ...profile.timeline,
         ],
@@ -182,54 +122,59 @@ class LeadProfileController extends AsyncNotifier<LeadProfile> {
     );
   }
 
-  /// Runs a simulated request for [action], then applies [apply].
+  /// Runs [request] for [action], then reloads the profile so consent,
+  /// status and timeline come from the server.
   Future<LeadActionOutcome> _run(
     LeadAction action,
-    LeadProfile Function(LeadProfile current) apply,
+    Future<void> Function(LeadsRepository repository) request,
     String successMessage,
   ) async {
     final profile = state.value;
-    if (profile == null) return const LeadActionFailed(busyMessage);
-    if (profile.busyAction != null) return const LeadActionFailed(busyMessage);
-    state = AsyncData(profile.copyWith(busyAction: () => action));
-    await Future<void>.delayed(AppDurations.simulatedNetwork);
-    final current = state.value;
-    if (!ref.mounted || current == null) {
+    if (profile == null || profile.busyAction != null) {
       return const LeadActionFailed(busyMessage);
     }
-    state = AsyncData(apply(current).copyWith(busyAction: () => null));
+    state = AsyncData(profile.copyWith(busyAction: () => action));
+    final repository = _repository;
+    try {
+      await request(repository);
+    } on ApiException catch (error) {
+      _clearBusy();
+      return LeadActionFailed(error.message);
+    }
+    final updated = await _reload(repository);
+    if (!ref.mounted) return LeadActionSucceeded(successMessage);
+    if (updated != null) {
+      _updateLeadsList(updated.lead);
+      state = AsyncData(updated);
+    } else {
+      _clearBusy();
+    }
     return LeadActionSucceeded(successMessage);
   }
 
-  /// [consent] marked withdrawn now by the signed-in user.
-  ChannelConsent _withdrawn(ChannelConsent consent) => ChannelConsent(
-    channel: consent.channel,
-    isGranted: false,
-    evidence: 'Withdrawn, recorded by ${_agentName()}',
-    recordedAt: DateTime.now(),
-  );
+  /// The profile after an action, or null when it could not be reloaded
+  /// (the action itself succeeded; pull to refresh catches up).
+  Future<LeadProfile?> _reload(LeadsRepository repository) async {
+    try {
+      return await repository.fetchProfile(leadId);
+    } on ApiException catch (error) {
+      AppLogger.warning('Lead profile reload failed: ${error.kind.name}');
+      return null;
+    }
+  }
 
-  /// A timeline event happening now.
-  TimelineEvent _event(TimelineKind kind, String title, String detail) =>
-      TimelineEvent(
-        at: DateTime.now(),
-        kind: kind,
-        title: title,
-        detail: detail,
-      );
+  /// Ends the running action without other changes.
+  void _clearBusy() {
+    final current = state.value;
+    if (!ref.mounted || current == null) return;
+    state = AsyncData(current.copyWith(busyAction: () => null));
+  }
 
   /// Keeps the Leads list in step when it is loaded.
   void _updateLeadsList(Lead lead) {
     if (ref.exists(leadsControllerProvider)) {
       ref.read(leadsControllerProvider.notifier).replaceLead(lead);
     }
-  }
-
-  /// Name of the signed-in user for evidence lines.
-  String _agentName() {
-    final user = ref.read(currentUserProvider);
-    if (user == null) return 'you';
-    return user.name.isEmpty ? user.email : user.name;
   }
 
   /// The lead's first name, or "the lead".

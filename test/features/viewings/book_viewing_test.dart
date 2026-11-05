@@ -15,19 +15,23 @@ import 'package:mergro_ai_voice_assistant/features/viewings/widgets/slot_picker.
 import '../../helpers/fakes.dart';
 import '../../helpers/test_app.dart';
 
-/// A signed-in container with the booking for lead-02 kept alive.
-ProviderContainer _container() {
+/// A signed-in container with lead-02's profile loaded (booking starts
+/// there) and its booking kept alive.
+Future<ProviderContainer> _container() async {
   final container = fakeContainer();
   container
       .read(currentUserProvider.notifier)
       .setUser(testUser(UserRole.salesAgent));
+  container.listen(leadProfileControllerProvider('lead-02'), (_, _) {});
+  await container.read(leadProfileControllerProvider('lead-02').future);
   container.listen(bookViewingControllerProvider('lead-02'), (_, _) {});
   return container;
 }
 
 void main() {
-  test('starts on today with listings for the lead and 7 days', () {
-    final state = _container().read(bookViewingControllerProvider('lead-02'));
+  test('starts on today with listings for the lead and 7 days', () async {
+    final container = await _container();
+    final state = container.read(bookViewingControllerProvider('lead-02'));
     expect(state.properties, hasLength(3));
     expect(state.properties.first.address, contains('Koramangala'));
     expect(state.propertyId, state.properties.first.id);
@@ -38,7 +42,7 @@ void main() {
   test(
     'taken slots cannot be held; free ones are held for 5 minutes',
     () async {
-      final container = _container();
+      final container = await _container();
       final controller = container.read(
         bookViewingControllerProvider('lead-02').notifier,
       );
@@ -67,10 +71,8 @@ void main() {
   test(
     'confirm needs a hold, then books and updates profile and Viewings',
     () async {
-      final container = _container();
-      container.listen(leadProfileControllerProvider('lead-02'), (_, _) {});
+      final container = await _container();
       container.listen(viewingsControllerProvider, (_, _) {});
-      await container.read(leadProfileControllerProvider('lead-02').future);
       final viewingsBefore = (await container.read(
         viewingsControllerProvider.future,
       )).length;

@@ -143,6 +143,41 @@ class Lead {
     return value == null ? null : LeadTemperature.fromScore(value);
   }
 
+  /// Parses a lead from `GET /api/leads` or `/api/leads/:id`. Throws
+  /// [FormatException] when the id, name, source, status or date is missing
+  /// or unknown.
+  factory Lead.fromJson(Map<String, dynamic> json) {
+    final id = json['_id'];
+    final name = json['name'];
+    final source = LeadSource.values.asNameMap()[json['source']];
+    final status = LeadStatus.values.asNameMap()[json['status']];
+    final createdAt = DateTime.tryParse('${json['createdAt']}');
+    if (id is! String ||
+        name is! String ||
+        source == null ||
+        status == null ||
+        createdAt == null) {
+      throw const FormatException('Invalid lead in API response');
+    }
+    String text(String key) => json[key] is String ? json[key] as String : '';
+    final score = json['score'];
+    final owner = json['ownerName'];
+    return Lead(
+      id: id,
+      name: name,
+      phone: text('phone'),
+      source: source,
+      status: status,
+      area: text('area'),
+      budget: text('budget'),
+      propertyType: text('propertyType'),
+      createdAt: createdAt.toLocal(),
+      lastActivity: text('lastActivity'),
+      score: score is num ? score.round() : null,
+      ownerName: owner is String && owner.isNotEmpty ? owner : null,
+    );
+  }
+
   /// Copies with a new [status] and [lastActivity].
   Lead copyWith({LeadStatus? status, String? lastActivity}) {
     return Lead(

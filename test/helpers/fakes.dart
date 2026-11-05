@@ -1,9 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mergro_ai_voice_assistant/core/network/api_client.dart';
 import 'package:mergro_ai_voice_assistant/core/network/api_exception.dart';
-import 'package:mergro_ai_voice_assistant/core/storage/theme_preference_store.dart';
-import 'package:mergro_ai_voice_assistant/core/storage/token_storage.dart';
 import 'package:mergro_ai_voice_assistant/core/theme/theme_mode_controller.dart';
 import 'package:mergro_ai_voice_assistant/core/utils/clock.dart';
 import 'package:mergro_ai_voice_assistant/features/auth/models/app_user.dart';
@@ -13,6 +10,13 @@ import 'package:mergro_ai_voice_assistant/features/onboarding/models/onboarding_
 import 'package:mergro_ai_voice_assistant/features/onboarding/models/onboarding_progress.dart';
 import 'package:mergro_ai_voice_assistant/features/onboarding/repositories/onboarding_repository.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:mergro_ai_voice_assistant/features/leads/repositories/leads_repository.dart';
+
+import 'fake_leads_repository.dart';
+import 'in_memory_stores.dart';
+
+export 'fake_leads_repository.dart';
+export 'in_memory_stores.dart';
 
 /// Display names of the test users per role.
 const Map<UserRole, String> testNamesByRole = {
@@ -39,48 +43,6 @@ AppUser testUser(
 
 /// Simulated server latency of the fakes.
 const Duration fakeLatency = Duration(milliseconds: 10);
-
-/// In-memory [TokenStorage].
-class InMemoryTokenStorage implements TokenStorage {
-  /// Current token.
-  String? token;
-
-  /// Whether the last save asked to persist.
-  bool? lastPersist;
-
-  @override
-  Future<String?> readAccessToken() async => token;
-
-  @override
-  Future<void> saveAccessToken(String token, {required bool persist}) async {
-    this.token = token;
-    lastPersist = persist;
-  }
-
-  @override
-  Future<void> clear() async => token = null;
-}
-
-/// In-memory [ThemePreferenceStore]; [failWith] makes every call throw.
-class InMemoryThemePreferenceStore implements ThemePreferenceStore {
-  /// Saved mode.
-  ThemeMode? saved;
-
-  /// Thrown by every call when set.
-  Object? failWith;
-
-  @override
-  Future<ThemeMode?> read() async {
-    if (failWith case final error?) throw error;
-    return saved;
-  }
-
-  @override
-  Future<void> write(ThemeMode mode) async {
-    if (failWith case final error?) throw error;
-    saved = mode;
-  }
-}
 
 /// Scriptable [AuthRepository]. The password "wrong" fails like the server.
 class FakeAuthRepository implements AuthRepository {
@@ -224,6 +186,7 @@ List<Override> fakeOverrides({
   FakeAuthRepository? auth,
   FakeOnboardingRepository? onboarding,
   InMemoryThemePreferenceStore? themeStore,
+  FakeLeadsRepository? leads,
 }) => [
   clockProvider.overrideWith((ref) => Stream.value(DateTime.now())),
   tokenStorageProvider.overrideWithValue(InMemoryTokenStorage()),
@@ -234,12 +197,14 @@ List<Override> fakeOverrides({
   onboardingRepositoryProvider.overrideWithValue(
     onboarding ?? FakeOnboardingRepository(),
   ),
+  leadsRepositoryProvider.overrideWithValue(leads ?? FakeLeadsRepository()),
 ];
 
 /// A test container using [fakeOverrides].
 ProviderContainer fakeContainer({
   FakeAuthRepository? auth,
   FakeOnboardingRepository? onboarding,
+  FakeLeadsRepository? leads,
 }) => ProviderContainer.test(
-  overrides: fakeOverrides(auth: auth, onboarding: onboarding),
+  overrides: fakeOverrides(auth: auth, onboarding: onboarding, leads: leads),
 );
